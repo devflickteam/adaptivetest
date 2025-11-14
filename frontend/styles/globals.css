@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #__next {
+  height: 100%;
+}
+
+body {
+  font-family: 'Amiri', serif;
+}
+
+input,
+textarea,
+button {
+  border: 1px solid white;
+  border-radius: 0; /* square corners */
+  background-color: transparent;
+  color: white;
+}
+
+input:focus,
+textarea:focus,
+button:focus {
+  outline: 1px solid white; /* white outline on focus */
+}
+
+button {
+  cursor: pointer;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out;
+}

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="220" viewBox="0 0 300 220">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e3f2e7"/>
+      <stop offset="1" stop-color="#cfe8d5"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="220" fill="url(#g)"/>
+  <circle cx="150" cy="80" r="50" fill="#132A13" opacity="0.1"/>
+  <text x="50%" y="65%" dominant-baseline="middle" text-anchor="middle" fill="#132A13" font-size="16" font-family="Arial">Site Not Enabled</text>
+</svg>

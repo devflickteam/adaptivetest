@@ -1,0 +1,44 @@
+cat > fix-scanner.patch <<'EOF'
+diff --git a/app/routes/scan.py b/app/routes/scan.py
+index 4b8c2a1..1d0cbe0 100644
+--- a/app/routes/scan.py
++++ b/app/routes/scan.py
+@@ -7,7 +7,7 @@
+ from sqlalchemy.orm import Session
+ from schemas import ScanRequest, ScanResponse, ScanResults, Pa11yIssue
+ from database import get_db
+-from app.services.recommendations import get_or_create_recommendation
++from services.recommendations import get_or_create_recommendation
+ 
+ router = APIRouter(prefix="/scan", tags=["scan"])
+ 
+@@ -16,7 +16,8 @@
+ ROOT_DIR = os.path.dirname(os.path.dirname(__file__))  # backend/
+ PA11Y_SCRIPT = os.path.join(ROOT_DIR, "pa11y_scan.js")
+ 
+-def _run_pa11y(url: str) -> dict:
++def _run_pa11y(url: str) -> dict:
++    """Runs pa11y_scan.js with Node and returns parsed JSON dict."""
+     if not os.path.exists(PA11Y_SCRIPT):
+         raise FileNotFoundError(f"pa11y_scan.js not found at {PA11Y_SCRIPT}")
+ 
+diff --git a/app/services/recommendations.py b/app/services/recommendations.py
+new file mode 100644
+index 0000000..6ae52f9
+--- /dev/null
++++ b/app/services/recommendations.py
+@@ -0,0 +1,25 @@
++from sqlalchemy.orm import Session
++
++
++def get_or_create_recommendation(db: Session, rule_code: str, rule_help: str, severity: str) -> str:
++    """
++    Stub function for recommendations. Replace with real logic later.
++    """
++    # For now: return a simple formatted string based on rule code
++    if not rule_code:
++        return "No rule code provided. Unable to generate recommendation."
++
++    recommendation = f"Rule {rule_code}: Severity {severity or 'N/A'}. See {rule_help or 'documentation'} for more details."
++    return recommendation
+EOF

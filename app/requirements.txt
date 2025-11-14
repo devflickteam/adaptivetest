@@ -1,0 +1,41 @@
+# --- Core Framework ---
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+
+# --- Data Models ---
+pydantic==2.11.7
+pydantic-settings==2.6.1
+typing-extensions==4.14.1
+
+# --- Database ---
+SQLAlchemy==2.0.36
+psycopg[binary]==3.2.9
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# --- Env Management ---
+python-dotenv==1.0.1
+
+# --- OpenAI Integration ---
+openai==1.45.0
+
+# --- Accessibility Scanning ---
+playwright==1.40.0
+beautifulsoup4==4.12.3
+
+# --- PDF Generation ---
+reportlab==4.1.0
+pillow==10.2.0
+
+# --- Utils (HTTP requests, file handling) ---
+httpx==0.27.2
+requests==2.32.3
+aiofiles==24.1.0
+python-multipart==0.0.9
+
+# --- Testing ---
+pytest==8.3.3
+pytest-asyncio==0.24.0
+
+# --- Deployment ---
+gunicorn==23.0.0

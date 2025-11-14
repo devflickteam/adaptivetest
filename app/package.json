@@ -1,0 +1,11 @@
+{
+  "name": "adaptivetest-backend-pa11y",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Node helper for Pa11y scans invoked by FastAPI",
+  "main": "pa11y_scan.js",
+  "dependencies": {
+    "pa11y": "^9.0.0"
+  }
+}
