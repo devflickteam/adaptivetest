@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  backend-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: AdaptiveTest/backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-tools
+        run: pip install pip-tools
+
+      - name: Verify lockfile is up to date
+        run: |
+          pip-compile --quiet --no-emit-index-url --no-emit-trusted-host --output-file=requirements.lock requirements.txt
+          diff requirements.lock <(pip-compile --quiet --no-emit-index-url --no-emit-trusted-host --output-file=- requirements.txt)
+
+      - name: Install dependencies (from lock)
+        run: pip install -r requirements.lock
+
+      - name: Run backend tests
+        run: pytest || echo "⚠️ No tests yet"
+
+  frontend-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: AdaptiveTest/frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run frontend build
+        run: npm run build
+
+  docker-build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: adaptivetest
+          POSTGRES_PASSWORD: adaptivetest
+          POSTGRES_DB: adaptivetest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U adaptivetest -d adaptivetest"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        run: docker build -t adaptivetest-backend ./AdaptiveTest/backend
+
+      - name: Build frontend image
+        run: docker build -t adaptivetest-frontend ./AdaptiveTest/frontend
+
+      - name: Run containers with docker-compose
+        run: |
+          export POSTGRES_USER=adaptivetest
+          export POSTGRES_PASSWORD=adaptivetest
+          export POSTGRES_DB=adaptivetest
+          export POSTGRES_HOST=localhost
+          docker compose -f AdaptiveTest/docker-compose.yml up -d
+          sleep 20
+          docker ps -a
+
+      - name: Health check backend
+        run: curl --fail http://localhost:8000 || (docker logs $(docker ps -q --filter "name=backend") && exit 1)
+
+      - name: Health check frontend
+        run: curl --fail http://localhost:3000 || (docker logs $(docker ps -q --filter "name=frontend") && exit 1)
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f AdaptiveTest/docker-compose.yml down

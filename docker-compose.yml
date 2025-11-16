@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
+    container_name: adaptive_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    working_dir: /code
+    volumes:
+      - ./app:/code/app
+    environment:
+      - PYTHONPATH=/code
+      - ENV=docker  # ← ADD THIS to trigger PostgreSQL config
+      - DATABASE_URL=postgresql://adaptivetest:adaptivetest@db:5432/adaptivetest
+    env_file:
+      - ./app/.env.docker  # ← ADD THIS for other environment variables
+    depends_on:
+      db:
+        condition: service_healthy  # ← Wait for DB to be ready
+    networks:
+      - adaptive_net
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: adaptive_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://backend:8000/api/v1
+    depends_on:
+      - backend
+    networks:
+      - adaptive_net
+
+  db:
+    image: postgres:15
+    container_name: adaptive_db
+    restart: always
+    environment:
+      POSTGRES_USER: adaptivetest
+      POSTGRES_PASSWORD: adaptivetest
+      POSTGRES_DB: adaptivetest
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - adaptive_net
+    ports:
+      - "5432:5432"
+    healthcheck:  # ← ADD HEALTH CHECK
+      test: ["CMD-SHELL", "pg_isready -U adaptivetest -d adaptivetest"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
+
+networks:
+  adaptive_net:

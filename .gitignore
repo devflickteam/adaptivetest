@@ -61,3 +61,4 @@ EOFapp/.env.docker
 app/.env.prod
 .env
 .env.local
+app/.env.prod
