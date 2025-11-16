@@ -19,11 +19,13 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS Middleware - Enhanced for Render
+# CORS Middleware - Enhanced for Production
 allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://adaptivetest-frontend.onrender.com",
+    "https://adaptivetest.adaptiveatelier.com",  # ✅ ADD YOUR DOMAIN
+    "https://www.adaptivetest.adaptiveatelier.com",  # ✅ ADD WWW SUBDOMAIN
 ]
 
 # Add frontend URL from environment (make sure it's properly formatted)
@@ -60,7 +62,9 @@ app.add_middleware(
         "Origin",
         "X-Requested-With",
         "Access-Control-Allow-Headers",
-        "Access-Control-Allow-Origin"
+        "Access-Control-Allow-Origin",
+        "Access-Control-Request-Headers",
+        "Access-Control-Request-Method"
     ],
 )
 
@@ -71,6 +75,7 @@ async def startup_event():
         create_tables()
         logger.info("🚀 AdaptiveTest API started successfully")
         logger.info(f"📋 CORS configured for {len(allowed_origins)} origins")
+        logger.info(f"🌐 Frontend URL: {settings.frontend_url}")
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")
         logger.error(traceback.format_exc())
@@ -88,7 +93,8 @@ def root():
             "version": "1.0.0",
             "environment": settings.env,
             "docs": "/docs",
-            "cors_origins_count": len(allowed_origins)
+            "cors_origins_count": len(allowed_origins),
+            "your_frontend_domain": "https://adaptivetest.adaptiveatelier.com"
         }
     except Exception as e:
         logger.error(f"Root endpoint crashed: {e}")
@@ -109,7 +115,8 @@ def health_check():
             "version": "1.0.0",
             "environment": settings.env,
             "database": "connected",
-            "cors_enabled": True
+            "cors_enabled": True,
+            "frontend_domain_included": "https://adaptivetest.adaptiveatelier.com" in allowed_origins
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -126,7 +133,8 @@ def cors_info():
         "allowed_origins": allowed_origins,
         "environment": settings.env,
         "frontend_url": settings.frontend_url,
-        "backend_url": settings.backend_url
+        "backend_url": settings.backend_url,
+        "your_domain_included": "https://adaptivetest.adaptiveatelier.com" in allowed_origins
     }
 
 @app.get("/info")
@@ -138,7 +146,9 @@ def info():
         "frontend_url": settings.frontend_url,
         "backend_url": settings.backend_url,
         "openai_configured": bool(settings.openai_api_key),
-        "cors_origins": len(allowed_origins)
+        "cors_origins": len(allowed_origins),
+        "your_domain": "https://adaptivetest.adaptiveatelier.com",
+        "domain_in_cors": "https://adaptivetest.adaptiveatelier.com" in allowed_origins
     }
 
 if __name__ == "__main__":
