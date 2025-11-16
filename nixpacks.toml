@@ -1,0 +1,15 @@
+[phases.setup]
+cmds = [
+  "apt-get update",
+  "apt-get install -y python3-pip python3-venv"
+]
+
+[phases.install]
+cmds = [
+  "pip install -r app/requirements.txt",
+  "playwright install",
+  "playwright install-deps"
+]
+
+[start]
+cmd = "cd app && python -m gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120"
