@@ -6,11 +6,13 @@ import toast from 'react-hot-toast';
 export function useApiClient() {
   const { apiBaseUrl } = useApi();
   // Add /api/v1 to the base URL
-  const baseUrl = apiBaseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+  const baseUrl = apiBaseUrl || process.env.NEXT_PUBLIC_API_URL || "https://adaptivetest-backend-b0d1ae1cfaec.herokuapp.com/api/v1";
 
-  // Start a new scan - FIXED ENDPOINT
+  // Start a new scan - FIXED ENDPOINT (ALREADY CORRECT)
   async function startScan(url) {
     try {
+      console.log('Starting scan for URL:', url);
+      
       const res = await fetch(`${baseUrl}/scan/start`, {  // ← CHANGED FROM /scan TO /scan/start
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -18,14 +20,23 @@ export function useApiClient() {
       });
       
       if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+        const errorData = await res.json().catch(() => ({ detail: `HTTP error! status: ${res.status}` }));
+        throw new Error(errorData.detail || `HTTP error! status: ${res.status}`);
       }
       
       const data = await res.json();
+      console.log('Scan started successfully:', data);
       return { ok: res.ok, data };
     } catch (err) {
+      console.error('Scan start error:', err);
       handleApiError('Failed to start scan', err);
-      return { ok: false, data: null };
+      return { 
+        ok: false, 
+        data: { 
+          detail: err.message || 'Failed to start scan',
+          scan_id: null 
+        } 
+      };
     }
   }
 
@@ -34,11 +45,22 @@ export function useApiClient() {
     if (!scanId) return { ok: false, data: null };
     try {
       const res = await fetch(`${baseUrl}/scan/${scanId}/status`);  // ← Now under /api/v1
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
       const data = await res.json();
       return { ok: res.ok, data };
     } catch (err) {
       handleApiError('Failed to fetch scan status', err);
-      return { ok: false, data: null };
+      return { 
+        ok: false, 
+        data: { 
+          status: 'error',
+          detail: err.message 
+        } 
+      };
     }
   }
 
@@ -47,11 +69,21 @@ export function useApiClient() {
     if (!scanId) return { ok: false, data: null };
     try {
       const res = await fetch(`${baseUrl}/scan/${scanId}/report`);  // ← Now under /api/v1
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
       const data = await res.json();
       return { ok: res.ok, data };
     } catch (err) {
       handleApiError('Failed to fetch report', err);
-      return { ok: false, data: null };
+      return { 
+        ok: false, 
+        data: { 
+          detail: err.message 
+        } 
+      };
     }
   }
 
@@ -108,6 +140,11 @@ export function useApiClient() {
   async function getAllResults() {
     try {
       const res = await fetch(`${baseUrl}/scan/results`);  // ← Now under /api/v1
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
       const data = await res.json();
       return { ok: res.ok, data };
     } catch (err) {
@@ -149,12 +186,50 @@ export function useApiClient() {
     }
   }
 
+  // NEW: Validate URL before scanning (optional helper function)
+  async function validateUrl(url) {
+    try {
+      // Basic client-side validation
+      const normalizedUrl = normalizeUrl(url);
+      const urlObj = new URL(normalizedUrl);
+      
+      return {
+        valid: true,
+        normalizedUrl: normalizedUrl,
+        message: 'URL is valid'
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        normalizedUrl: null,
+        message: 'Please enter a valid website URL'
+      };
+    }
+  }
+
+  // Helper function to normalize URLs (same as in your form)
+  function normalizeUrl(url) {
+    let normalizedUrl = url.trim();
+    
+    // Remove any existing protocol to avoid duplication
+    normalizedUrl = normalizedUrl.replace(/^(https?:\/\/)/, '');
+    
+    // Add https:// protocol if no protocol is present
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = 'https://' + normalizedUrl;
+    }
+    
+    return normalizedUrl;
+  }
+
   return { 
     startScan, 
     getScanStatus, 
     getReport, 
     downloadPdfReport, 
     getAllResults, 
-    downloadAllResultsPdf 
+    downloadAllResultsPdf,
+    validateUrl, // Optional: for pre-validation
+    normalizeUrl // Optional: for URL normalization
   };
 }

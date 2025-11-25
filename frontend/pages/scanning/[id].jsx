@@ -1,4 +1,4 @@
-// pages/scanning/[id].jsx - UPDATED TO MATCH FIGMA
+// pages/scanning/[id].jsx - UPDATED WITH AUTO-SCAN SUPPORT
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
@@ -12,12 +12,13 @@ import toast from "react-hot-toast";
 export default function ScanningPage() {
   const router = useRouter();
   const { id } = router.query;
-  const { getScanStatus, getReport } = useApiClient();
+  const { getScanStatus, getReport, startScan } = useApiClient(); // Added startScan
 
   const [status, setStatus] = useState("pending");
   const [phase, setPhase] = useState("crawling");
   const [progress, setProgress] = useState(10);
   const [scanUrl, setScanUrl] = useState("");
+  const [isAutoStarting, setIsAutoStarting] = useState(false);
 
   // Real-time scanning categories with dynamic progress
   const [scanningCategories, setScanningCategories] = useState([
@@ -33,6 +34,50 @@ export default function ScanningPage() {
     { name: "Evaluating Tables...", progress: 0, completed: false },
   ]);
 
+  // AUTO-SCAN FUNCTIONALITY
+  useEffect(() => {
+    // Check if we need to auto-start a scan from URL parameter
+    const checkForAutoScan = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const scanUrlParam = urlParams.get('scan_url');
+      
+      if (scanUrlParam && !id) {
+        // We have a URL but no scan ID - need to start a new scan
+        const decodedUrl = decodeURIComponent(scanUrlParam);
+        setIsAutoStarting(true);
+        setScanUrl(decodedUrl);
+        
+        try {
+          toast.loading("🔄 Starting accessibility scan...");
+          
+          // Start the scan using your API client
+          const { ok, data } = await startScan(decodedUrl);
+          
+          if (ok && data.scan_id) {
+            toast.dismiss();
+            toast.success("✅ Scan started! Tracking progress...");
+            
+            // Replace the URL with the new scan ID
+            router.replace(`/scanning/${data.scan_id}?scan_url=${encodeURIComponent(decodedUrl)}`, undefined, { shallow: true });
+          } else {
+            throw new Error(data?.detail || 'Failed to start scan');
+          }
+        } catch (error) {
+          toast.dismiss();
+          toast.error(`❌ Scan failed: ${error.message}`);
+          setIsAutoStarting(false);
+        }
+      } else if (scanUrlParam && id) {
+        // We have both URL and ID - just set the URL for display
+        const decodedUrl = decodeURIComponent(scanUrlParam);
+        setScanUrl(decodedUrl);
+      }
+    };
+
+    checkForAutoScan();
+  }, [id, router, startScan]);
+
+  // EXISTING SCAN STATUS POLLING
   useEffect(() => {
     if (!id) return;
 
@@ -43,7 +88,7 @@ export default function ScanningPage() {
 
         setStatus(data.status || "pending");
         if (data.phase) setPhase(data.phase);
-        if (data.url) setScanUrl(data.url);
+        if (data.url && !scanUrl) setScanUrl(data.url); // Only set if not already set
 
         // Update scanning categories based on phase
         const updatedCategories = [...scanningCategories];
@@ -101,7 +146,7 @@ export default function ScanningPage() {
     }, 5000); // poll every 5s
 
     return () => clearInterval(interval);
-  }, [id, getScanStatus, getReport, router]);
+  }, [id, getScanStatus, getReport, router, scanUrl, scanningCategories]);
 
   return (
     <div className="min-h-screen bg-white text-black flex flex-col">
@@ -126,38 +171,60 @@ export default function ScanningPage() {
             AdaptiveTest AI
           </h1>
           
-          {scanUrl && (
+          {/* Show URL or loading state */}
+          {scanUrl ? (
             <div className="inline-flex items-center border border-white rounded-lg px-6 py-3 mb-8">
               <span className="font-bold text-sm">{scanUrl}</span>
             </div>
-          )}
+          ) : isAutoStarting ? (
+            <div className="inline-flex items-center border border-white rounded-lg px-6 py-3 mb-8">
+              <span className="font-bold text-sm">🔄 Starting scan...</span>
+            </div>
+          ) : null}
         </div>
       </div>
 
       {/* Main Content Area - White Background */}
       <div className="flex-1 bg-white py-12">
         <div className="max-w-7xl mx-auto px-4">
+          {/* Auto-start loading overlay */}
+          {isAutoStarting && !id && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-8 text-center max-w-md">
+                <h3 className="font-amiri text-3xl mb-4">Starting Scan</h3>
+                <p className="text-gray-600 mb-4">Initializing accessibility scan for:</p>
+                <p className="font-semibold mb-6">{scanUrl}</p>
+                <div className="w-16 h-16 mx-auto mb-4">
+                  <Lottie animationData={scanningAnimation} loop />
+                </div>
+                <p className="text-sm text-gray-500">Please wait...</p>
+              </div>
+            </div>
+          )}
+
           {/* Scanning Header Card */}
           <div className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8 mb-8">
             <div className="text-center mb-8">
               <h2 className="font-amiri text-5xl md:text-6xl text-black mb-4">
-                Scanning your website...
+                {isAutoStarting && !id ? "Starting your scan..." : "Scanning your website..."}
               </h2>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">
                 Testing your website for accessibility requirements with recommendations on where to adapt
               </p>
             </div>
 
-            {/* Main Progress Bar */}
-            <div className="max-w-4xl mx-auto mb-8">
-              <div className="bg-gradient-to-r from-[#F6EDEC] to-white h-16 rounded-lg mb-4 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-[#132A13] to-[#2d5a2d] h-full rounded-lg transition-all duration-1000 ease-out"
-                  style={{ width: `${progress}%` }}
-                />
+            {/* Main Progress Bar - Only show when we have an ID */}
+            {id && (
+              <div className="max-w-4xl mx-auto mb-8">
+                <div className="bg-gradient-to-r from-[#F6EDEC] to-white h-16 rounded-lg mb-4 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-[#132A13] to-[#2d5a2d] h-full rounded-lg transition-all duration-1000 ease-out"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <p className="text-center text-2xl font-semibold">{progress}% Complete</p>
               </div>
-              <p className="text-center text-2xl font-semibold">{progress}% Complete</p>
-            </div>
+            )}
 
             {/* Scanning Animation */}
             <div className="flex justify-center">
@@ -167,59 +234,61 @@ export default function ScanningPage() {
             </div>
           </div>
 
-          {/* REAL-TIME SCANNING CATEGORIES - EXACTLY LIKE FIGMA */}
-          <div className="space-y-8">
-            {scanningCategories.map((category, index) => (
-              <div 
-                key={index}
-                className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8 relative"
-              >
-                {/* Category Header */}
-                <h3 className="font-amiri text-3xl mb-6 text-black">
-                  {category.name}
-                </h3>
-                
-                {/* Progress Bars - EXACT FIGMA STYLE */}
-                <div className="space-y-4">
-                  {/* Main Progress Bar */}
-                  <div className="mb-4">
-                    <div className="bg-gradient-to-r from-[#F6EDEC] to-white h-16 rounded-lg overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-[#132A13] to-[#2d5a2d] h-full rounded-lg transition-all duration-1000 ease-out"
-                        style={{ width: `${category.progress}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Secondary Progress Bar (if needed) */}
-                  {category.progress > 0 && category.progress < 100 && (
-                    <div className="max-w-md">
+          {/* REAL-TIME SCANNING CATEGORIES - Only show when we have an ID */}
+          {id && (
+            <div className="space-y-8">
+              {scanningCategories.map((category, index) => (
+                <div 
+                  key={index}
+                  className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8 relative"
+                >
+                  {/* Category Header */}
+                  <h3 className="font-amiri text-3xl mb-6 text-black">
+                    {category.name}
+                  </h3>
+                  
+                  {/* Progress Bars - EXACT FIGMA STYLE */}
+                  <div className="space-y-4">
+                    {/* Main Progress Bar */}
+                    <div className="mb-4">
                       <div className="bg-gradient-to-r from-[#F6EDEC] to-white h-16 rounded-lg overflow-hidden">
                         <div
                           className="bg-gradient-to-r from-[#132A13] to-[#2d5a2d] h-full rounded-lg transition-all duration-1000 ease-out"
-                          style={{ width: `${Math.min(category.progress + 20, 100)}%` }}
+                          style={{ width: `${category.progress}%` }}
                         />
                       </div>
                     </div>
-                  )}
-                </div>
 
-                {/* Decorative Corners - EXACT FIGMA STYLE */}
-                <div className="absolute top-4 left-4 w-8 h-8">
-                  <div className="w-8 h-8 border-l-2 border-t-2 border-[#A44A3F]" />
+                    {/* Secondary Progress Bar (if needed) */}
+                    {category.progress > 0 && category.progress < 100 && (
+                      <div className="max-w-md">
+                        <div className="bg-gradient-to-r from-[#F6EDEC] to-white h-16 rounded-lg overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-[#132A13] to-[#2d5a2d] h-full rounded-lg transition-all duration-1000 ease-out"
+                            style={{ width: `${Math.min(category.progress + 20, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Decorative Corners - EXACT FIGMA STYLE */}
+                  <div className="absolute top-4 left-4 w-8 h-8">
+                    <div className="w-8 h-8 border-l-2 border-t-2 border-[#A44A3F]" />
+                  </div>
+                  <div className="absolute top-4 right-4 w-8 h-8">
+                    <div className="w-8 h-8 border-r-2 border-t-2 border-[#A44A3F]" />
+                  </div>
+                  <div className="absolute bottom-4 left-4 w-8 h-8">
+                    <div className="w-8 h-8 border-l-2 border-b-2 border-[#A44A3F]" />
+                  </div>
+                  <div className="absolute bottom-4 right-4 w-8 h-8">
+                    <div className="w-8 h-8 border-r-2 border-b-2 border-[#A44A3F]" />
+                  </div>
                 </div>
-                <div className="absolute top-4 right-4 w-8 h-8">
-                  <div className="w-8 h-8 border-r-2 border-t-2 border-[#A44A3F]" />
-                </div>
-                <div className="absolute bottom-4 left-4 w-8 h-8">
-                  <div className="w-8 h-8 border-l-2 border-b-2 border-[#A44A3F]" />
-                </div>
-                <div className="absolute bottom-4 right-4 w-8 h-8">
-                  <div className="w-8 h-8 border-r-2 border-b-2 border-[#A44A3F]" />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* Error State */}
           {status === "failed" && (
