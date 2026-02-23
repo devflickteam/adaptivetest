@@ -5,15 +5,39 @@ import toast from 'react-hot-toast';
 
 export function useApiClient() {
   const { apiBaseUrl } = useApi();
-  // Add /api/v1 to the base URL
-  const baseUrl = apiBaseUrl || process.env.NEXT_PUBLIC_API_URL || "https://adaptivetest-backend-b0d1ae1cfaec.herokuapp.com/api/v1";
+  // UPDATED: Changed to new backend URL
+  const baseUrl = apiBaseUrl || process.env.NEXT_PUBLIC_API_URL || "https://adaptivetest-99a9087d9ed9.herokuapp.com/api/v1";
 
-  // Start a new scan - FIXED ENDPOINT (ALREADY CORRECT)
+  // ADD THIS NEW FUNCTION: Get scan results by ID
+  async function getScanResults(scanId) {
+    if (!scanId) return { ok: false, data: null };
+    try {
+      console.log('📡 Fetching scan results for ID:', scanId);
+      const res = await fetch(`${baseUrl}/scan/${scanId}/results`);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
+      const data = await res.json();
+      return { ok: res.ok, data };
+    } catch (err) {
+      handleApiError('Failed to fetch scan results', err);
+      return { 
+        ok: false, 
+        data: { 
+          detail: err.message 
+        } 
+      };
+    }
+  }
+
+  // Start a new scan
   async function startScan(url) {
     try {
       console.log('Starting scan for URL:', url);
       
-      const res = await fetch(`${baseUrl}/scan/start`, {  // ← CHANGED FROM /scan TO /scan/start
+      const res = await fetch(`${baseUrl}/scan/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
@@ -40,11 +64,11 @@ export function useApiClient() {
     }
   }
 
-  // Check scan status - UPDATED ENDPOINT
+  // Check scan status
   async function getScanStatus(scanId) {
     if (!scanId) return { ok: false, data: null };
     try {
-      const res = await fetch(`${baseUrl}/scan/${scanId}/status`);  // ← Now under /api/v1
+      const res = await fetch(`${baseUrl}/scan/${scanId}/status`);
       
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
@@ -64,11 +88,11 @@ export function useApiClient() {
     }
   }
 
-  // Get report - UPDATED ENDPOINT
+  // Get report
   async function getReport(scanId) {
     if (!scanId) return { ok: false, data: null };
     try {
-      const res = await fetch(`${baseUrl}/scan/${scanId}/report`);  // ← Now under /api/v1
+      const res = await fetch(`${baseUrl}/scan/${scanId}/report`);
       
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
@@ -87,11 +111,11 @@ export function useApiClient() {
     }
   }
 
-  // Download PDF report - UPDATED ENDPOINT
+  // Download PDF report
   async function downloadPdfReport(scanId) {
     if (!scanId) return { ok: false };
     try {
-      const res = await fetch(`${baseUrl}/scan/${scanId}/report/pdf`);  // ← Now under /api/v1
+      const res = await fetch(`${baseUrl}/scan/${scanId}/report/pdf`);
 
       if (!res.ok) {
         const errorText = await res.text();
@@ -136,10 +160,10 @@ export function useApiClient() {
     }
   }
 
-  // Get all scan results - UPDATED ENDPOINT
+  // Get all scan results
   async function getAllResults() {
     try {
-      const res = await fetch(`${baseUrl}/scan/results`);  // ← Now under /api/v1
+      const res = await fetch(`${baseUrl}/scan/results`);
       
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
@@ -153,10 +177,10 @@ export function useApiClient() {
     }
   }
 
-  // Download all scan results as one PDF - UPDATED ENDPOINT
+  // Download all scan results as one PDF
   async function downloadAllResultsPdf() {
     try {
-      const res = await fetch(`${baseUrl}/scan/results/download`);  // ← Now under /api/v1
+      const res = await fetch(`${baseUrl}/scan/results/download`);
 
       if (!res.ok) {
         const errorText = await res.text();
@@ -207,7 +231,7 @@ export function useApiClient() {
     }
   }
 
-  // Helper function to normalize URLs (same as in your form)
+  // Helper function to normalize URLs
   function normalizeUrl(url) {
     let normalizedUrl = url.trim();
     
@@ -226,10 +250,11 @@ export function useApiClient() {
     startScan, 
     getScanStatus, 
     getReport, 
+    getScanResults, // NEW: Added this function
     downloadPdfReport, 
     getAllResults, 
     downloadAllResultsPdf,
-    validateUrl, // Optional: for pre-validation
-    normalizeUrl // Optional: for URL normalization
+    validateUrl,
+    normalizeUrl
   };
 }
