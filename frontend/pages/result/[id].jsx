@@ -1,4 +1,4 @@
-// pages/result/[id].jsx - FIXED: Using localStorage (working version)
+// pages/result/[id].jsx - COMPLETE with AdaptiveWiz recommendation
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/router';
@@ -84,25 +84,25 @@ const getAffectedUsers = (issue) => {
   const msg = issue.message?.toLowerCase() || '';
   
   if (msg.includes('image') || msg.includes('visual') || msg.includes('alt')) {
-    users.push('👁️ Blind and visually impaired users');
+    users.push('Blind and visually impaired users');
   }
   if (msg.includes('keyboard') || msg.includes('tab') || msg.includes('focus')) {
-    users.push('⌨️ Users who cannot use a mouse');
+    users.push('Users who cannot use a mouse');
   }
   if (msg.includes('contrast') || msg.includes('color')) {
-    users.push('🎨 Users with color blindness');
+    users.push('Users with color blindness');
   }
   if (msg.includes('heading') || msg.includes('structure')) {
-    users.push('🧠 Users with cognitive disabilities');
+    users.push('Users with cognitive disabilities');
   }
   if (msg.includes('form') || msg.includes('input') || msg.includes('label')) {
-    users.push('👤 All users, especially those using screen readers');
+    users.push('All users, especially those using screen readers');
   }
   if (msg.includes('link') || msg.includes('button')) {
-    users.push('🖱️ Users navigating by links/buttons');
+    users.push('Users navigating by links/buttons');
   }
   if (msg.includes('audio') || msg.includes('video')) {
-    users.push('🎧 Deaf or hard of hearing users');
+    users.push('Deaf or hard of hearing users');
   }
   
   return users.length ? users : ['👥 Users with disabilities'];
@@ -351,6 +351,119 @@ const EmailOptInModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
+// AdaptiveWiz Recommendation Component
+const AdaptiveWizRecommendation = ({ issues, overallScore }) => {
+  // Issues that AdaptiveWiz can automatically fix
+  const fixableIssueCodes = [
+    'image-alt', 'link-name', 'button-name', 'label', 'input-label',
+    'heading-order', 'color-contrast-potential', 'aria-label-empty',
+    'empty-title', 'meta-viewport', 'link-purpose', 'image-alt-decorative',
+    'alt-too-long', 'alt-filename', 'alt-generic', 'button-submit-vague',
+    'placeholder-label', 'aria-required', 'table-headers', 'iframe-title'
+  ];
+  
+  const fixableIssues = issues.filter(i => fixableIssueCodes.includes(i.code)).length;
+  const improvedScore = Math.min(100, Math.round(overallScore + (fixableIssues * 2)));
+  
+  if (fixableIssues === 0) return null; // Don't show if no fixable issues
+  
+  return (
+    <div className="mt-12 relative overflow-hidden">
+      {/* Background with gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#132A13] to-[#2d5a2d] rounded-3xl opacity-95"></div>
+      <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
+      <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-[#A3493F]/10 rounded-full blur-3xl"></div>
+      
+      <div className="relative p-8 md:p-12">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <span className="inline-block px-4 py-2 bg-white/10 rounded-full text-white/90 text-sm font-semibold mb-4">
+            ✨ RECOMMENDED SOLUTION
+          </span>
+          <h2 className="font-amiri text-4xl md:text-5xl text-white mb-4">
+            Stop Fixing Issues Manually
+          </h2>
+          <p className="text-white/80 text-lg max-w-2xl mx-auto">
+            With <strong className="text-white">AdaptiveWiz</strong> be accessible {fixableIssues} in real-time
+          </p>
+        </div>
+        
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <div className="bg-white/10 backdrop-blur rounded-xl p-6 text-center">
+            <div className="text-4xl font-bold text-white mb-2">{fixableIssues}</div>
+            <div className="text-white/70">Issues AdaptiveWiz Can Fix</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur rounded-xl p-6 text-center">
+            <div className="text-4xl font-bold text-white mb-2">{overallScore}%</div>
+            <div className="text-white/70"> Video/Audio closed captions </div>
+          </div>
+          <div className="bg-white/10 backdrop-blur rounded-xl p-6 text-center">
+            <div className="text-4xl font-bold text-green-300 mb-2">{improvedScore}%</div>
+            <div className="text-white/70">Voice navigation</div>
+          </div>
+        </div>
+        
+        {/* Features Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+          <div className="flex items-center gap-2 text-white/80">
+            <svg className="w-5 h-5 text-green-300 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm">alt text description</span>
+          </div>
+          <div className="flex items-center gap-2 text-white/80">
+            <svg className="w-5 h-5 text-green-300 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm">Color contrast fix</span>
+          </div>
+          <div className="flex items-center gap-2 text-white/80">
+            <svg className="w-5 h-5 text-green-300 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm">Keyboard navigation</span>
+          </div>
+          <div className="flex items-center gap-2 text-white/80">
+            <svg className="w-5 h-5 text-green-300 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm">Screen reader support</span>
+          </div>
+        </div>
+        
+        {/* CTA Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <a
+            href="https://adaptiveatelier.com/adaptivewiz"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative inline-flex items-center gap-3 bg-white text-[#132A13] px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 shadow-xl"
+          >
+            <span>Try AdaptiveWiz Free</span>
+            <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+          <a
+            href="https://adaptiveatelier.com/adaptivewiz"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/90 hover:text-white px-8 py-4 rounded-xl font-semibold text-lg border-2 border-white/20 hover:border-white/40 transition-all"
+          >
+            Contact Sales →
+          </a>
+        </div>
+        
+        {/* Trust badges */}
+        <p className="mt-8 text-center text-white/50 text-sm">
+          ⚡ 30-day free trial • No credit card required • WCAG & ADA compliant
+        </p>
+      </div>
+    </div>
+  );
+};
+
 export default function ResultPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -363,16 +476,14 @@ export default function ResultPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState('');
 
-  // FIXED: Use localStorage only - this is what worked before!
+  // Load report from localStorage
   useEffect(() => {
-    // Don't proceed until we have an ID from the router
     if (!id) return;
     
     setLoading(true);
     console.log('📋 Loading report for scan ID:', id);
     
     try {
-      // Get from localStorage (where scanning page saved it)
       const stored = localStorage.getItem("adaptivetest:lastReport");
       
       if (stored) {
@@ -390,7 +501,7 @@ export default function ResultPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]); // Re-run when id changes
+  }, [id]);
 
   const toggleCategory = (category) => {
     setExpandedCategories(prev => ({
@@ -456,10 +567,13 @@ export default function ResultPage() {
   const calculateOverallScore = () => {
     if (!report?.issues) return 100;
     const criticalCount = report.issues.filter(i => 
-      i.type === 'error' || i.type === 'critical'
+      i.type === 'violation' && i.impact === 'critical'
     ).length;
-    const totalIssues = report.issues.length;
-    return Math.max(0, Math.round(100 - (criticalCount * 5) - (totalIssues * 0.5)));
+    const violationCount = report.issues.filter(i => i.type === 'violation').length;
+    const warningCount = report.issues.filter(i => i.type === 'warning').length;
+    
+    // Score calculation: start at 100, subtract points for issues
+    return Math.max(0, Math.round(100 - (criticalCount * 5) - (violationCount * 2) - warningCount));
   };
 
   // Group issues by category
@@ -507,6 +621,8 @@ export default function ResultPage() {
       category = 'Evaluating Audio/Video';
     } else if (msg.includes('animation') || msg.includes('motion')) {
       category = 'Evaluating Animations';
+    } else if (msg.includes('doctype') || msg.includes('charset') || msg.includes('viewport')) {
+      category = 'Evaluating Document Structure';
     } else {
       category = 'Evaluating Structure';
     }
@@ -556,7 +672,7 @@ export default function ResultPage() {
 
   const overallScore = calculateOverallScore();
 
-  // ALL CATEGORIES LIST - 20 categories
+  // ALL CATEGORIES LIST - 20+ categories
   const allCategories = [
     'Evaluating Clickables',
     'Evaluating Titles',
@@ -577,6 +693,7 @@ export default function ResultPage() {
     'Evaluating Focus Management',
     'Evaluating Audio/Video',
     'Evaluating Animations',
+    'Evaluating Document Structure',
     'Evaluating Structure'
   ];
 
@@ -632,7 +749,7 @@ export default function ResultPage() {
           
           {/* Header */}
           <div className="mb-8">
-            <h2 className="font-amiri text-[60px] md:text-[80px] lg:text-[100px] leading-[0.9] text-black">
+            <h2 className="font-amiri text-[60px] md:text-[60px] lg:text-[100px] leading-[0.9] text-black">
               Web Accessibility Audit
             </h2>
           </div>
@@ -689,7 +806,7 @@ export default function ResultPage() {
             </div>
           </div>
 
-          {/* Evaluation Categories - ALL 20 CATEGORIES with Pass Marks */}
+          {/* Evaluation Categories - ALL CATEGORIES with Pass Marks */}
           <div className="space-y-6">
             {allCategories.map(category => {
               const issues = issuesByCategory[category] || [];
@@ -731,7 +848,7 @@ export default function ResultPage() {
                       {issues.length > 0 ? (
                         issues.map((issue, idx) => {
                           const issueId = `${category}-${idx}`;
-                          const severityPercentage = getSeverityPercentage(issue.type);
+                          const severityPercentage = getSeverityPercentage(issue.impact);
                           const severityColor = getSeverityColor(severityPercentage);
                           const title = getIssueTitle(issue);
                           const affectedUsers = getAffectedUsers(issue);
@@ -944,6 +1061,16 @@ export default function ResultPage() {
           </div>
         </div>
       </div>
+
+      {/* AdaptiveWiz Recommendation Section */}
+      {report && (
+        <div className="max-w-7xl mx-auto px-4 mt-8">
+          <AdaptiveWizRecommendation 
+            issues={report.issues || []} 
+            overallScore={overallScore}
+          />
+        </div>
+      )}
 
       {/* Email Modal */}
       <EmailOptInModal
