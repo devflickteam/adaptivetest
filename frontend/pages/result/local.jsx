@@ -1,4 +1,4 @@
-// pages/result/[id].jsx - FIXED with proper text and styling
+// pages/result/[id].jsx - FINAL VERSION with reduced spacing and cleaned header
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
@@ -514,15 +514,11 @@ export default function ResultPage() {
 
       <Navbar />
 
-      {/* Hero Section - Exactly like Figma */}
-      <div className="relative bg-[#132A13] min-h-[692px] overflow-hidden">
-        {/* Background circles */}
-        <div className="absolute w-[1386px] h-[1386px] left-[267px] top-[-131px] border border-white/30 rounded-full" />
-        <div className="absolute w-[1219px] h-[1219px] left-[351px] top-[-47px] border border-white rounded-full" />
-        
-        <div className="relative max-w-7xl mx-auto px-4 pt-32">
+      {/* Hero Section - Clean background, no SVGs */}
+      <div className="bg-[#132A13] py-16">
+        <div className="max-w-7xl mx-auto px-4">
           <div className="text-center">
-            <h1 className="font-amiri text-[120px] leading-[100px] text-white mb-8">
+            <h1 className="font-amiri text-[80px] md:text-[100px] lg:text-[120px] leading-[0.9] text-white mb-6">
               AdaptiveTest AI
             </h1>
             
@@ -540,20 +536,20 @@ export default function ResultPage() {
         </div>
       </div>
 
-      {/* Main Content Container - White card with shadow */}
-      <div className="max-w-7xl mx-auto px-4 -mt-20 relative z-10">
+      {/* Main Content Container - Reduced top spacing */}
+      <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-10">
         <div className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8">
           
-          {/* Header */}
-          <div className="mb-12">
-            <h2 className="font-amiri text-[100px] leading-[100px] text-black">
+          {/* Header - Reduced margin */}
+          <div className="mb-8">
+            <h2 className="font-amiri text-[60px] md:text-[80px] lg:text-[100px] leading-[0.9] text-black">
               Web Accessibility Audit
             </h2>
           </div>
 
-          {/* Score Card - FIXED: Score moved to left and made bold green */}
+          {/* Score Card - Score on left, status on right */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-            {/* Left side - Score (now on left) */}
+            {/* Left side - Score */}
             <div className="space-y-6">
               <div className="w-full h-[62px] bg-gradient-to-r from-[#F6EDEC] to-white" />
               <div className="w-full h-[62px] bg-gradient-to-r from-[#F6EDEC] to-white max-w-[552px]" />
@@ -565,10 +561,10 @@ export default function ResultPage() {
             {/* Right side - Scanning status */}
             <div className="relative">
               <div className="bg-[#132A13]/10 p-8">
-                <h3 className="font-amiri text-[50px] text-black mb-4">
+                <h3 className="font-amiri text-[40px] md:text-[50px] text-black mb-4">
                   Scanning your website...
                 </h3>
-                <p className="font-amiri text-[20px] text-black">
+                <p className="font-amiri text-[18px] md:text-[20px] text-black">
                   Testing your website for accessibility requirements with recommendations on where to adapt
                 </p>
               </div>
@@ -603,13 +599,13 @@ export default function ResultPage() {
             </div>
           </div>
 
-          {/* Evaluation Categories - Following Figma layout */}
-          <div className="space-y-8">
+          {/* Evaluation Categories */}
+          <div className="space-y-6">
             {Object.entries(issuesByCategory)
               .sort(([a], [b]) => a.localeCompare(b))
-              .map(([category, issues], categoryIndex) => (
+              .map(([category, issues]) => (
                 <div key={category} className="bg-white shadow-[3px_3px_20px_rgba(0,0,0,0.20)] rounded-2xl overflow-hidden">
-                  {/* Category Header - REMOVED rotated rectangles */}
+                  {/* Category Header - Clean design */}
                   <div 
                     className="bg-[#F6EDEC] p-6 cursor-pointer hover:bg-[#e8dddc] transition"
                     onClick={() => toggleCategory(category)}
