@@ -1,10 +1,10 @@
-// pages/result/[id].jsx - COMPLETE with WCAG versions + ARIA
+// pages/result/[id].jsx - MATCHING FIGMA DESIGN
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 
-// UPDATED: Convert severity to percentage score
+// Helper functions (keeping all our comprehensive functionality)
 const getSeverityPercentage = (type) => {
   switch(type?.toLowerCase()) {
     case 'error':
@@ -21,7 +21,6 @@ const getSeverityPercentage = (type) => {
   }
 };
 
-// UPDATED: Get severity color based on percentage
 const getSeverityColor = (percentage) => {
   const num = parseInt(percentage);
   if (num >= 90) return 'bg-red-100 text-red-800 border-red-300';
@@ -30,7 +29,6 @@ const getSeverityColor = (percentage) => {
   return 'bg-blue-100 text-blue-800 border-blue-300';
 };
 
-// Helper to get plain English issue title
 const getIssueTitle = (issue) => {
   const msg = issue.message?.toLowerCase() || '';
   
@@ -68,7 +66,6 @@ const getIssueTitle = (issue) => {
   return issue.message || 'Accessibility issue detected';
 };
 
-// Helper to determine affected users
 const getAffectedUsers = (issue) => {
   const users = [];
   const msg = issue.message?.toLowerCase() || '';
@@ -98,7 +95,6 @@ const getAffectedUsers = (issue) => {
   return users.length ? users : ['👥 Users with disabilities'];
 };
 
-// Helper to determine WCAG version and criterion
 const getWCAGInfo = (issue) => {
   const code = issue.code?.toLowerCase() || '';
   const msg = issue.message?.toLowerCase() || '';
@@ -107,7 +103,6 @@ const getWCAGInfo = (issue) => {
   let criterion = '';
   let level = 'A';
   
-  // ARIA (WAI-ARIA)
   if (code.includes('aria') || msg.includes('aria-') || msg.includes('role=') || msg.includes('aria')) {
     version = 'ARIA';
     if (msg.includes('required attribute') || code.includes('aria-required')) {
@@ -124,11 +119,9 @@ const getWCAGInfo = (issue) => {
     return { version, criterion, level };
   }
   
-  // WCAG 2.0
   if (code.includes('wcag2a') || msg.includes('wcag 2.0') || msg.includes('wcag2.0')) {
     version = 'WCAG 2.0';
     
-    // Level A success criteria
     if (code.includes('1.1.1') || msg.includes('non-text content') || msg.includes('alt')) {
       criterion = '1.1.1 Non-text Content';
     } else if (code.includes('1.2.1') || msg.includes('audio-only') || msg.includes('video-only')) {
@@ -146,7 +139,6 @@ const getWCAGInfo = (issue) => {
     }
   }
   
-  // WCAG 2.1
   else if (code.includes('wcag21') || msg.includes('wcag 2.1') || msg.includes('wcag2.1')) {
     version = 'WCAG 2.1';
     
@@ -165,7 +157,6 @@ const getWCAGInfo = (issue) => {
     }
   }
   
-  // WCAG 2.2
   else if (code.includes('wcag22') || msg.includes('wcag 2.2') || msg.includes('wcag2.2')) {
     version = 'WCAG 2.2';
     
@@ -182,7 +173,6 @@ const getWCAGInfo = (issue) => {
     }
   }
   
-  // Determine level (A, AA, AAA)
   if (code.includes('level-aaa') || msg.includes('aaa')) {
     level = 'AAA';
   } else if (code.includes('level-aa') || msg.includes('aa')) {
@@ -192,7 +182,6 @@ const getWCAGInfo = (issue) => {
   return { version, criterion, level };
 };
 
-// Helper to determine category from issue
 const getCategoryForIssue = (issue) => {
   const msg = issue.message?.toLowerCase() || '';
   const context = issue.context?.toLowerCase() || '';
@@ -497,7 +486,7 @@ export default function ResultPage() {
 
   if (!report) {
     return (
-      <div className="min-h-screen bg-white text-black flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <p className="text-2xl">Loading report...</p>
       </div>
     );
@@ -515,324 +504,281 @@ export default function ResultPage() {
 
   const overallScore = calculateOverallScore();
   const totalIssues = report.issues?.length || 0;
-  const criticalIssues = report.issues?.filter(i => i.type === 'error' || i.type === 'critical').length || 0;
 
   return (
-    <div className="min-h-screen bg-white text-black flex flex-col">
+    <div className="min-h-screen bg-white">
       <Head>
         <title>Accessibility Report – AdaptiveTest AI</title>
-        <meta name="description" content="View your website's accessibility report with specific fixes and recommendations." />
       </Head>
 
       <Navbar />
 
-      {/* Hero Section with Original Styling */}
-      <div className="relative bg-[#132A13] text-white py-20 overflow-hidden">
-        <div className="absolute w-[1386px] h-[1386px] left-[-200px] top-[-131px] border border-white/30 rounded-full" />
-        <div className="absolute w-[1219px] h-[1219px] left-[-150px] top-[-47px] border border-white rounded-full" />
+      {/* Hero Section - Exactly like Figma */}
+      <div className="relative bg-[#132A13] min-h-[692px] overflow-hidden">
+        {/* Background circles */}
+        <div className="absolute w-[1386px] h-[1386px] left-[267px] top-[-131px] border border-white/30 rounded-full" />
+        <div className="absolute w-[1219px] h-[1219px] left-[351px] top-[-47px] border border-white rounded-full" />
         
-        <div className="relative max-w-4xl mx-auto text-center px-4">
-          <h1 className="font-amiri text-6xl md:text-7xl lg:text-8xl mb-8 leading-tight">
-            Accessibility Report
-          </h1>
-          
-          {report?.url && (
-            <div className="inline-flex items-center border border-white rounded-lg px-6 py-3 mb-8">
-              <span className="font-bold text-sm truncate max-w-md">{report.url}</span>
-            </div>
-          )}
+        {/* Decorative leaves/symbols */}
+        <div className="absolute left-[75px] top-[55px] opacity-60">
+          {/* SVG leaf patterns would go here - using the ones from your Figma */}
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-4 pt-32">
+          <div className="text-center">
+            <h1 className="font-amiri text-[120px] leading-[100px] text-white mb-8">
+              AdaptiveTest AI
+            </h1>
+            
+            {/* URL Input Bar */}
+            {report?.url && (
+              <div className="inline-flex items-center">
+                <div className="w-[386px] h-[50px] outline outline-1 outline-white flex items-center px-6">
+                  <span className="text-white text-[13.56px] font-bold font-['Arial']">
+                    {report.url.replace(/^https?:\/\//, '')}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 bg-white py-12">
-        <div className="max-w-6xl mx-auto px-4">
-          {/* Results Header with Score */}
-          <div className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8 mb-8">
-            <div className="text-center mb-8">
-              <h2 className="font-amiri text-5xl md:text-6xl text-black mb-4">
-                Accessibility Evaluation Results
-              </h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                Comprehensive analysis of your website's accessibility compliance
-              </p>
-            </div>
-
-            {/* Overall Score */}
-            <div className="max-w-4xl mx-auto mb-8">
-              <div className="bg-gradient-to-r from-[#F6EDEC] to-white h-16 rounded-lg mb-4 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-[#132A13] to-[#2d5a2d] h-full rounded-lg transition-all duration-1000"
-                  style={{ width: `${overallScore}%` }}
-                />
-              </div>
-              <p className="text-center text-2xl font-semibold">
-                Overall Accessibility Score: {overallScore}%
-              </p>
-            </div>
-
-            {/* Severity Score Legend */}
-            <div className="max-w-3xl mx-auto mb-8">
-              <h3 className="text-center text-xl font-semibold mb-4">Issue Severity Scale</h3>
-              <div className="grid grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="bg-red-100 text-red-800 border border-red-300 rounded-lg p-3 mx-auto mb-2">
-                    <div className="text-xl font-bold">95%</div>
-                    <div className="text-sm">Critical</div>
-                  </div>
-                  <p className="text-xs text-gray-600">Blocks many users</p>
-                </div>
-                <div className="text-center">
-                  <div className="bg-orange-100 text-orange-800 border border-orange-300 rounded-lg p-3 mx-auto mb-2">
-                    <div className="text-xl font-bold">75%</div>
-                    <div className="text-sm">Serious</div>
-                  </div>
-                  <p className="text-xs text-gray-600">Major barriers</p>
-                </div>
-                <div className="text-center">
-                  <div className="bg-yellow-100 text-yellow-800 border border-yellow-300 rounded-lg p-3 mx-auto mb-2">
-                    <div className="text-xl font-bold">50%</div>
-                    <div className="text-sm">Moderate</div>
-                  </div>
-                  <p className="text-xs text-gray-600">Some difficulties</p>
-                </div>
-                <div className="text-center">
-                  <div className="bg-blue-100 text-blue-800 border border-blue-300 rounded-lg p-3 mx-auto mb-2">
-                    <div className="text-xl font-bold">25%</div>
-                    <div className="text-sm">Minor</div>
-                  </div>
-                  <p className="text-xs text-gray-600">Small improvements</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Summary Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto text-center">
-              <div className="bg-red-50 rounded-lg p-4">
-                <div className="text-2xl font-bold text-red-600">{criticalIssues}</div>
-                <div className="text-sm text-red-800">Critical (90%+)</div>
-              </div>
-              <div className="bg-orange-50 rounded-lg p-4">
-                <div className="text-2xl font-bold text-orange-600">
-                  {report.issues?.filter(i => i.type === 'warning' || i.type === 'serious').length || 0}
-                </div>
-                <div className="text-sm text-orange-800">Serious (70-89%)</div>
-              </div>
-              <div className="bg-yellow-50 rounded-lg p-4">
-                <div className="text-2xl font-bold text-yellow-600">
-                  {report.issues?.filter(i => i.type === 'notice' || i.type === 'moderate').length || 0}
-                </div>
-                <div className="text-sm text-yellow-800">Moderate (50-69%)</div>
-              </div>
-              <div className="bg-blue-50 rounded-lg p-4">
-                <div className="text-2xl font-bold text-blue-600">{totalIssues}</div>
-                <div className="text-sm text-blue-800">Total Issues</div>
-              </div>
-            </div>
+      {/* Main Content Container - White card with shadow */}
+      <div className="max-w-7xl mx-auto px-4 -mt-20 relative z-10">
+        <div className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8">
+          
+          {/* Header */}
+          <div className="mb-12">
+            <h2 className="font-amiri text-[100px] leading-[100px] text-black">
+              Web Accessibility Audit
+            </h2>
           </div>
 
-          {/* Categories */}
-          <div className="space-y-6">
-            {Object.entries(issuesByCategory)
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([category, issues]) => (
-              <div key={category} className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] overflow-hidden">
-                {/* Category Header */}
-                <div 
-                  className="bg-[#F6EDEC] p-6 cursor-pointer hover:bg-[#e8dddc] transition flex items-center justify-between"
-                  onClick={() => toggleCategory(category)}
-                >
-                  <div className="flex items-center gap-4">
-                    <span className="text-3xl text-[#A3493F]">
-                      {expandedCategories[category] ? '−' : '+'}
-                    </span>
-                    <div>
-                      <h2 className="font-amiri text-3xl text-black">{category}</h2>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {issues.length} {issues.length === 1 ? 'issue' : 'issues'} found
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm text-gray-500">Issues</div>
-                    <div className="text-2xl font-bold text-[#A3493F]">{issues.length}</div>
-                  </div>
-                </div>
-
-                {/* Category Issues */}
-                {expandedCategories[category] && (
-                  <div className="divide-y divide-gray-200">
-                    {issues.map((issue, idx) => {
-                      const issueId = `${category}-${idx}`;
-                      const severityPercentage = getSeverityPercentage(issue.type);
-                      const severityColor = getSeverityColor(severityPercentage);
-                      const title = getIssueTitle(issue);
-                      const affectedUsers = getAffectedUsers(issue);
-                      const { version, criterion, level } = getWCAGInfo(issue);
-                      
-                      return (
-                        <div key={idx} className="border-t border-gray-200">
-                          {/* Issue Header */}
-                          <div 
-                            className="p-6 cursor-pointer hover:bg-gray-50 transition flex items-start gap-4"
-                            onClick={() => toggleIssue(issueId)}
-                          >
-                            <span className="text-2xl text-gray-400">
-                              {expandedIssues[issueId] ? '−' : '+'}
-                            </span>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-semibold text-lg text-gray-900">
-                                  {title}
-                                </h3>
-                                <div className={`flex items-center gap-1 px-3 py-1 rounded-full border ${severityColor}`}>
-                                  <span className="font-bold">{severityPercentage}</span>
-                                  <span className="text-xs">Severity</span>
-                                </div>
-                              </div>
-                              {!expandedIssues[issueId] && (
-                                <div className="flex flex-wrap gap-2">
-                                  {affectedUsers.slice(0, 2).map((user, i) => (
-                                    <span key={i} className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                      {user}
-                                    </span>
-                                  ))}
-                                  {affectedUsers.length > 2 && (
-                                    <span className="text-sm text-gray-500">+{affectedUsers.length - 2} more</span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Expanded Issue Details */}
-                          {expandedIssues[issueId] && (
-                            <div className="p-6 bg-gray-50 border-t border-gray-200">
-                              <div className="space-y-6">
-                                {/* WCAG Version & Criterion - NEW SECTION */}
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                  <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                                    <span className="text-blue-600">📋</span>
-                                    Accessibility Standard
-                                  </h4>
-                                  <div className="flex flex-wrap items-center gap-3">
-                                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                                      version === 'ARIA' 
-                                        ? 'bg-purple-600 text-white' 
-                                        : 'bg-blue-600 text-white'
-                                    }`}>
-                                      {version}
-                                    </span>
-                                    {criterion && (
-                                      <span className="bg-white text-blue-800 px-3 py-1 rounded-full text-sm border border-blue-300">
-                                        {criterion}
-                                      </span>
-                                    )}
-                                    {level && version !== 'ARIA' && (
-                                      <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm border border-purple-300">
-                                        Level {level}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Issue Description */}
-                                <div>
-                                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                    <span className="text-red-500">❓</span>
-                                    What's the issue?
-                                  </h4>
-                                  <p className="text-gray-700">{issue.message}</p>
-                                </div>
-
-                                {/* Who it affects */}
-                                {affectedUsers.length > 0 && (
-                                  <div>
-                                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                      <span className="text-blue-500">👥</span>
-                                      Who it affects
-                                    </h4>
-                                    <div className="flex flex-wrap gap-2">
-                                      {affectedUsers.map((user, i) => (
-                                        <span key={i} className="bg-white border border-gray-200 px-3 py-1 rounded-full text-sm">
-                                          {user}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Element example */}
-                                {issue.context && (
-                                  <div>
-                                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                      <span className="text-green-500">📍</span>
-                                      Element found
-                                    </h4>
-                                    <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm overflow-x-auto">
-                                      {issue.context}
-                                    </pre>
-                                  </div>
-                                )}
-
-                                {/* How to fix */}
-                                {issue.recommendation && (
-                                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                    <h4 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
-                                      <span className="text-yellow-600">🔧</span>
-                                      How to fix
-                                    </h4>
-                                    <p className="text-yellow-800">{issue.recommendation}</p>
-                                  </div>
-                                )}
-
-                                {/* WCAG Reference */}
-                                {issue.code && (
-                                  <div className="text-sm text-gray-500">
-                                    <span className="font-medium">Reference:</span> {issue.code}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+          {/* Score Card */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            {/* Left side - Scanning status */}
+            <div className="relative">
+              <div className="absolute -top-10 left-0">
+                <div className="w-[31px] h-[31px] border border-[#A44A3F] rotate-45"></div>
               </div>
-            ))}
-          </div>
-
-          {/* Download Report */}
-          <div className="mt-8 bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8 text-center">
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="bg-[#132A13] text-white p-3 rounded-lg">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+              <div className="absolute -top-10 right-0">
+                <div className="w-[31px] h-[31px] border border-[#A44A3F] rotate-45"></div>
               </div>
-              <div>
-                <h3 className="font-amiri text-3xl text-black mb-2">
-                  Download Complete Report
+              <div className="bg-[#132A13]/10 p-8">
+                <h3 className="font-amiri text-[50px] text-black mb-4">
+                  Scanning your website...
                 </h3>
-                <p className="text-gray-600">
-                  Get the full detailed report with all issues and fixes
+                <p className="font-amiri text-[20px] text-black">
+                  Testing your website for accessibility requirements with recommendations on where to adapt
                 </p>
               </div>
             </div>
-            
+
+            {/* Right side - Score */}
+            <div className="space-y-6">
+              <div className="w-full h-[62px] bg-gradient-to-r from-[#F6EDEC] to-white" />
+              <div className="w-full h-[62px] bg-gradient-to-r from-[#F6EDEC] to-white max-w-[552px]" />
+              <div className="text-right">
+                <span className="text-2xl font-semibold">Score: {overallScore}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Severity Scale */}
+          <div className="grid grid-cols-4 gap-4 mb-12 max-w-3xl">
+            <div className="text-center">
+              <div className="bg-red-100 text-red-800 border border-red-300 rounded-lg p-3 mx-auto mb-2">
+                <div className="text-xl font-bold">95%</div>
+                <div className="text-sm">Critical</div>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="bg-orange-100 text-orange-800 border border-orange-300 rounded-lg p-3 mx-auto mb-2">
+                <div className="text-xl font-bold">75%</div>
+                <div className="text-sm">Serious</div>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="bg-yellow-100 text-yellow-800 border border-yellow-300 rounded-lg p-3 mx-auto mb-2">
+                <div className="text-xl font-bold">50%</div>
+                <div className="text-sm">Moderate</div>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="bg-blue-100 text-blue-800 border border-blue-300 rounded-lg p-3 mx-auto mb-2">
+                <div className="text-xl font-bold">25%</div>
+                <div className="text-sm">Minor</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Evaluation Categories - Following Figma layout */}
+          <div className="space-y-8">
+            {Object.entries(issuesByCategory)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([category, issues], categoryIndex) => (
+                <div key={category} className="bg-white shadow-[3px_3px_20px_rgba(0,0,0,0.20)] rounded-2xl overflow-hidden">
+                  {/* Category Header - with corner decorations */}
+                  <div className="relative">
+                    <div className="absolute top-4 left-4 w-[31px] h-[31px] border border-[#A44A3F] rotate-45"></div>
+                    <div className="absolute top-4 right-4 w-[31px] h-[31px] border border-[#A44A3F] rotate-45"></div>
+                    
+                    <div 
+                      className="bg-[#F6EDEC] p-6 cursor-pointer hover:bg-[#e8dddc] transition"
+                      onClick={() => toggleCategory(category)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <span className="text-3xl text-[#A3493F]">
+                            {expandedCategories[category] ? '−' : '+'}
+                          </span>
+                          <h3 className="font-amiri text-3xl text-black">{category}</h3>
+                        </div>
+                        <span className="text-2xl font-bold text-[#A3493F]">{issues.length}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Issues List */}
+                  {expandedCategories[category] && (
+                    <div className="divide-y divide-gray-200">
+                      {issues.map((issue, idx) => {
+                        const issueId = `${category}-${idx}`;
+                        const severityPercentage = getSeverityPercentage(issue.type);
+                        const severityColor = getSeverityColor(severityPercentage);
+                        const title = getIssueTitle(issue);
+                        const affectedUsers = getAffectedUsers(issue);
+                        const { version, criterion, level } = getWCAGInfo(issue);
+
+                        return (
+                          <div key={idx} className="border-t border-[#A44A3F]/20">
+                            {/* Issue Header */}
+                            <div 
+                              className="p-6 cursor-pointer hover:bg-gray-50 transition flex items-start gap-4"
+                              onClick={() => toggleIssue(issueId)}
+                            >
+                              <span className="text-2xl text-gray-400">
+                                {expandedIssues[issueId] ? '−' : '+'}
+                              </span>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h4 className="font-semibold text-lg text-gray-900">
+                                    {title}
+                                  </h4>
+                                  <div className={`flex items-center gap-1 px-3 py-1 rounded-full border ${severityColor}`}>
+                                    <span className="font-bold">{severityPercentage}</span>
+                                    <span className="text-xs">Severity</span>
+                                  </div>
+                                </div>
+                                {!expandedIssues[issueId] && (
+                                  <div className="flex flex-wrap gap-2">
+                                    {affectedUsers.slice(0, 2).map((user, i) => (
+                                      <span key={i} className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                        {user}
+                                      </span>
+                                    ))}
+                                    {affectedUsers.length > 2 && (
+                                      <span className="text-sm text-gray-500">+{affectedUsers.length - 2} more</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Expanded Issue Details */}
+                            {expandedIssues[issueId] && (
+                              <div className="p-6 bg-gray-50 border-t border-[#A44A3F]/20">
+                                <div className="space-y-6">
+                                  {/* WCAG Info */}
+                                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                                      <span>📋</span>
+                                      Accessibility Standard
+                                    </h5>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                        version === 'ARIA' 
+                                          ? 'bg-purple-600 text-white' 
+                                          : 'bg-blue-600 text-white'
+                                      }`}>
+                                        {version}
+                                      </span>
+                                      {criterion && (
+                                        <span className="bg-white text-blue-800 px-3 py-1 rounded-full text-sm border border-blue-300">
+                                          {criterion}
+                                        </span>
+                                      )}
+                                      {level && version !== 'ARIA' && (
+                                        <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm border border-purple-300">
+                                          Level {level}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Issue Description */}
+                                  <div>
+                                    <h5 className="font-semibold text-gray-900 mb-2">What's the issue?</h5>
+                                    <p className="text-gray-700">{issue.message}</p>
+                                  </div>
+
+                                  {/* Affected Users */}
+                                  {affectedUsers.length > 0 && (
+                                    <div>
+                                      <h5 className="font-semibold text-gray-900 mb-2">Who it affects</h5>
+                                      <div className="flex flex-wrap gap-2">
+                                        {affectedUsers.map((user, i) => (
+                                          <span key={i} className="bg-white border border-gray-200 px-3 py-1 rounded-full text-sm">
+                                            {user}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Element Example */}
+                                  {issue.context && (
+                                    <div>
+                                      <h5 className="font-semibold text-gray-900 mb-2">Element found</h5>
+                                      <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm overflow-x-auto">
+                                        {issue.context}
+                                      </pre>
+                                    </div>
+                                  )}
+
+                                  {/* How to Fix */}
+                                  {issue.recommendation && (
+                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                      <h5 className="font-semibold text-yellow-800 mb-2">How to fix</h5>
+                                      <p className="text-yellow-800">{issue.recommendation}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+
+          {/* Download Report Button */}
+          <div className="mt-12 text-center">
             <button
               onClick={() => setShowEmailModal(true)}
-              className="bg-[#132A13] hover:bg-[#1a3a1a] text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors inline-flex items-center gap-2"
+              className="bg-[#132A13] hover:bg-[#1a3a1a] text-white px-12 py-4 rounded-lg font-semibold text-lg transition-colors inline-flex items-center gap-2"
             >
-              📄 Get Free PDF Report →
+              📄 Download Complete Report
             </button>
           </div>
         </div>
       </div>
 
-      {/* Email Opt-In Modal */}
+      {/* Email Modal */}
       <EmailOptInModal
         isOpen={showEmailModal}
         onClose={() => setShowEmailModal(false)}
