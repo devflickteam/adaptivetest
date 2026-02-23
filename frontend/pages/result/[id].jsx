@@ -370,7 +370,7 @@ const AdaptiveWizRecommendation = ({ issues, overallScore }) => {
   return (
     <div className="mt-12 relative overflow-hidden">
       {/* Background with gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#132A13] to-[#2d5a2d] rounded-3xl opacity-95"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-[#132A13] to-[#132A13] rounded-3xl opacity-95"></div>
       <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
       <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-[#A3493F]/10 rounded-full blur-3xl"></div>
       
@@ -384,7 +384,7 @@ const AdaptiveWizRecommendation = ({ issues, overallScore }) => {
             Stop Fixing Issues Manually
           </h2>
           <p className="text-white/80 text-lg max-w-2xl mx-auto">
-            With <strong className="text-white">AdaptiveWiz</strong> be accessible {fixableIssues} in real-time
+            With <strong className="text-white">AdaptiveWiz</strong> be accessible in real-time
           </p>
         </div>
         
@@ -395,7 +395,7 @@ const AdaptiveWizRecommendation = ({ issues, overallScore }) => {
             <div className="text-white/70">Issues AdaptiveWiz Can Fix</div>
           </div>
           <div className="bg-white/10 backdrop-blur rounded-xl p-6 text-center">
-            <div className="text-4xl font-bold text-white mb-2">{overallScore}%</div>
+            <div className="text-4xl font-bold text-white mb-2">100%</div>
             <div className="text-white/70"> Video/Audio closed captions </div>
           </div>
           <div className="bg-white/10 backdrop-blur rounded-xl p-6 text-center">
@@ -446,7 +446,7 @@ const AdaptiveWizRecommendation = ({ issues, overallScore }) => {
             </svg>
           </a>
           <a
-            href="https://adaptiveatelier.com/adaptivewiz"
+            href="https://adaptiveatelier.com/contact"
             target="_blank"
             rel="noopener noreferrer"
             className="text-white/90 hover:text-white px-8 py-4 rounded-xl font-semibold text-lg border-2 border-white/20 hover:border-white/40 transition-all"
