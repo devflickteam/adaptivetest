@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from app.database import get_db
-from app.models import ScanResult
+from database import get_db
+from models import ScanResult
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import List
@@ -11,7 +11,7 @@ import io
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from urllib.parse import urlparse
-from app.services.scanner import scan_website_with_recommendations
+from services.scanner import scan_website_with_recommendations
 
 router = APIRouter(prefix="/scan", tags=["Scan Results"])
 

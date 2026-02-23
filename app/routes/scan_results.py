@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 import subprocess, json, datetime
 
-from app.database import get_db
-from app.models import ScanResult, ScanIssue
+from database import get_db
+from models import ScanResult, ScanIssue
 
 router = APIRouter(prefix="/scan", tags=["Scan Results"])
 

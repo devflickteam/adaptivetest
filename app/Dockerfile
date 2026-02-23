@@ -1,33 +1,25 @@
-# app/Dockerfile
 FROM python:3.11-slim
 
-# Install system deps and Node (for pa11y/npx)
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    gnupg \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Node 18 (use NodeSource)
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install -g pa11y
-
-# Create app directory
 WORKDIR /code
 
-# Copy requirements and install
-COPY ./app/requirements.txt /code/requirements.txt
-RUN pip install --no-cache-dir -r /code/requirements.txt
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy application code
-COPY ./app /code/app
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-ENV PYTHONPATH=/code
+# Install Playwright and browsers
+RUN pip install playwright==1.40.0
+RUN playwright install chromium
+
+# Copy ALL application code (current directory)
+COPY . .
 
 # Expose port
 EXPOSE 8000
 
-# Use uvicorn importing the app package
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Start the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

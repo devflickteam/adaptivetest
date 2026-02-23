@@ -2,9 +2,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from app.routes import scan, scan_results
-from app.config import settings
-from app.database import create_tables
+from routes import scan, scan_results
+from config import settings
+from database import create_tables
 import logging
 import traceback
 
@@ -19,53 +19,67 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS Middleware - Enhanced for Production
+# CORS Middleware - FIXED VERSION
 allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://adaptivetest-frontend.onrender.com",
-    "https://adaptivetest.adaptiveatelier.com",  # ✅ ADD YOUR DOMAIN
-    "https://www.adaptivetest.adaptiveatelier.com",  # ✅ ADD WWW SUBDOMAIN
+    "https://adaptivetest.adaptiveatelier.com",
+    "https://www.adaptivetest.adaptiveatelier.com",
+    "http://localhost:8000",
 ]
 
-# Add frontend URL from environment (make sure it's properly formatted)
-if settings.frontend_url:
-    # Clean the URL - remove trailing slashes
-    frontend_url = settings.frontend_url.rstrip('/')
-    if frontend_url not in allowed_origins:
-        allowed_origins.append(frontend_url)
-
-# Add the backend URL for same-origin requests (optional but good practice)
-if settings.backend_url:
-    backend_url = settings.backend_url.rstrip('/')
-    if backend_url not in allowed_origins:
-        allowed_origins.append(backend_url)
-
-# For development, allow common localhost variations
+# Add environment-specific origins
 if settings.env == "development":
     allowed_origins.extend([
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
     ])
+else:
+    # Production - ensure all production domains are included
+    production_domains = [
+        "https://adaptivetest.adaptiveatelier.com",
+        "https://www.adaptivetest.adaptiveatelier.com",
+    ]
+    for domain in production_domains:
+        if domain not in allowed_origins:
+            allowed_origins.append(domain)
 
-logger.info(f"CORS allowed origins: {allowed_origins}")
+# Handle frontend URL from environment with proper normalization
+if settings.frontend_url:
+    # Normalize the URL - remove trailing slashes and ensure proper format
+    frontend_url = settings.frontend_url.rstrip('/')
+    
+    # Add both http and https versions if needed
+    if frontend_url.startswith('http://'):
+        https_version = frontend_url.replace('http://', 'https://')
+        if https_version not in allowed_origins:
+            allowed_origins.append(https_version)
+    elif frontend_url.startswith('https://'):
+        http_version = frontend_url.replace('https://', 'http://')
+        if http_version not in allowed_origins:
+            allowed_origins.append(http_version)
+    
+    # Add www and non-www versions
+    if frontend_url.startswith('https://'):
+        if 'www.' not in frontend_url:
+            www_version = frontend_url.replace('https://', 'https://www.')
+            if www_version not in allowed_origins:
+                allowed_origins.append(www_version)
+        else:
+            non_www_version = frontend_url.replace('https://www.', 'https://')
+            if non_www_version not in allowed_origins:
+                allowed_origins.append(non_www_version)
+
+logger.info(f"✅ CORS configured for {len(allowed_origins)} origins")
+logger.info(f"🌐 Allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=[
-        "Content-Type",
-        "Authorization", 
-        "Accept",
-        "Origin",
-        "X-Requested-With",
-        "Access-Control-Allow-Headers",
-        "Access-Control-Allow-Origin",
-        "Access-Control-Request-Headers",
-        "Access-Control-Request-Method"
-    ],
+    allow_headers=["*"],  # Simplified - allow all headers
 )
 
 # Initialize database tables on startup
@@ -76,6 +90,7 @@ async def startup_event():
         logger.info("🚀 AdaptiveTest API started successfully")
         logger.info(f"📋 CORS configured for {len(allowed_origins)} origins")
         logger.info(f"🌐 Frontend URL: {settings.frontend_url}")
+        logger.info(f"🏷️ Environment: {settings.env}")
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")
         logger.error(traceback.format_exc())
@@ -94,7 +109,8 @@ def root():
             "environment": settings.env,
             "docs": "/docs",
             "cors_origins_count": len(allowed_origins),
-            "your_frontend_domain": "https://adaptivetest.adaptiveatelier.com"
+            "your_frontend_domain": "https://adaptivetest.adaptiveatelier.com",
+            "frontend_in_cors": "https://adaptivetest.adaptiveatelier.com" in allowed_origins
         }
     except Exception as e:
         logger.error(f"Root endpoint crashed: {e}")
@@ -104,7 +120,7 @@ def root():
 def health_check():
     try:
         # Test database connection
-        from app.database import SessionLocal
+        from database import SessionLocal
         db = SessionLocal()
         db.execute(text("SELECT 1"))
         db.close()
@@ -116,7 +132,8 @@ def health_check():
             "environment": settings.env,
             "database": "connected",
             "cors_enabled": True,
-            "frontend_domain_included": "https://adaptivetest.adaptiveatelier.com" in allowed_origins
+            "frontend_domain_included": "https://adaptivetest.adaptiveatelier.com" in allowed_origins,
+            "cors_origins_count": len(allowed_origins)
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -129,12 +146,18 @@ def health_check():
 @app.get("/cors-info")
 def cors_info():
     """Endpoint to check CORS configuration"""
+    frontend_included = "https://adaptivetest.adaptiveatelier.com" in allowed_origins
+    www_included = "https://www.adaptivetest.adaptiveatelier.com" in allowed_origins
+    
     return {
         "allowed_origins": allowed_origins,
         "environment": settings.env,
         "frontend_url": settings.frontend_url,
         "backend_url": settings.backend_url,
-        "your_domain_included": "https://adaptivetest.adaptiveatelier.com" in allowed_origins
+        "your_domain_included": frontend_included,
+        "www_domain_included": www_included,
+        "total_origins": len(allowed_origins),
+        "cors_status": "✅ Configured" if frontend_included else "❌ Misconfigured"
     }
 
 @app.get("/info")
@@ -148,8 +171,15 @@ def info():
         "openai_configured": bool(settings.openai_api_key),
         "cors_origins": len(allowed_origins),
         "your_domain": "https://adaptivetest.adaptiveatelier.com",
-        "domain_in_cors": "https://adaptivetest.adaptiveatelier.com" in allowed_origins
+        "domain_in_cors": "https://adaptivetest.adaptiveatelier.com" in allowed_origins,
+        "www_domain_in_cors": "https://www.adaptivetest.adaptiveatelier.com" in allowed_origins
     }
+
+# Additional CORS test endpoint
+@app.options("/api/v1/{rest_of_path:path}")
+async def options_handler(rest_of_path: str):
+    """Handle preflight OPTIONS requests"""
+    return {"message": "CORS preflight OK"}
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from app.database import SessionLocal, engine
-from app.models import User, ScanResult
+from database import SessionLocal, engine
+from models import User, ScanResult
 from passlib.hash import bcrypt
 
 

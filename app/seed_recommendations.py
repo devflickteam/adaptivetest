@@ -1,4 +1,4 @@
-from app.database import SessionLocal
+from database import SessionLocal
 from app import models
 
 

@@ -1,7 +1,7 @@
 # app/models.py
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
-from app.database import Base
+from database import Base
 
 
 class ScanResult(Base):

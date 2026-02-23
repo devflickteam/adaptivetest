@@ -4,7 +4,7 @@ Production-ready recommendation service with caching and fallbacks
 """
 from sqlalchemy.orm import Session
 import logging
-from app.models import ScanIssue
+from models import ScanIssue
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ def get_or_create_recommendation(
     
     # 3) Generate with OpenAI or use fallback
     try:
-        from app.integrations.openai_client import generate_recommendation_text
+        from integrations.openai_client import generate_recommendation_text
         
         prompt = f"""
         Accessibility issue detected:

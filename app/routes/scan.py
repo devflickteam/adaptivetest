@@ -6,10 +6,11 @@ from sqlalchemy.orm import Session
 import io
 import logging
 from datetime import datetime
+import time
 
-from app.database import get_db
-from app.models import ScanResult, ScanIssue
-from app.services.scanner import scan_website_with_recommendations
+from database import get_db
+from models import ScanResult, ScanIssue
+from services.scanner import scan_website_with_recommendations
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -75,116 +76,158 @@ async def start_scan(
         logger.error(f"❌ Failed to start scan: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Scan initialization failed: {str(e)}")
 
-async def process_scan_async(scan_id: int, url: str, db: Session):
-    """Background task to process the accessibility scan"""
+def process_scan_async(scan_id: int, url: str, db: Session):
+    """Background task to process the accessibility scan - UPDATED SYNCHRONOUS"""
+    start_time = time.time()
+    logger.info(f"🔄 Starting background scan process for ID: {scan_id}, URL: {url}")
+    
     try:
         # Get fresh database session for background task
-        from app.database import SessionLocal
+        from database import SessionLocal
         background_db = SessionLocal()
         
         try:
-            # Process the scan
-            updated_scan = scan_website_with_recommendations(background_db, url, scan_id)
-            logger.info(f"✅ Scan completed successfully for ID: {scan_id}")
+            # Update status to scanning immediately
+            scan = background_db.get(ScanResult, scan_id)
+            if scan:
+                scan.status = "scanning"
+                background_db.commit()
+                logger.info(f"📊 Scan {scan_id} status updated to 'scanning'")
+            
+            # Process the scan - NOW CALLING SYNCHRONOUS FUNCTION
+            logger.info(f"🎯 Starting accessibility scan for ID: {scan_id}")
+            results = scan_website_with_recommendations(background_db, url, scan_id)
+            
+            execution_time = time.time() - start_time
+            logger.info(f"✅ Scan {scan_id} completed successfully in {execution_time:.2f}s with {len(results.get('issues', []))} issues")
             
         except Exception as scan_error:
-            logger.error(f"❌ Scan processing failed for ID {scan_id}: {scan_error}")
+            execution_time = time.time() - start_time
+            logger.error(f"❌ Scan processing failed for ID {scan_id} after {execution_time:.2f}s: {scan_error}")
             # Ensure scan status is updated to failed
             failed_scan = background_db.get(ScanResult, scan_id)
             if failed_scan:
                 failed_scan.status = "failed"
                 background_db.commit()
+                logger.info(f"📊 Scan {scan_id} status updated to 'failed'")
             raise
             
         finally:
             background_db.close()
             
     except Exception as e:
-        logger.error(f"❌ Background scan failed for ID {scan_id}: {str(e)}")
+        execution_time = time.time() - start_time
+        logger.error(f"❌ Background scan failed for ID {scan_id} after {execution_time:.2f}s: {str(e)}")
 
 @router.get("/scan/{scan_id}/status")
 async def scan_status(scan_id: int, db: Session = Depends(get_db)):
-    """Get current status of a scan"""
-    scan = db.get(ScanResult, scan_id)
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
-    
-    # Map status to frontend phases
-    status_mapping = {
-        "pending": "crawling",
-        "scanning": "crawling", 
-        "completed": "reporting", 
-        "failed": "failed"
-    }
-    
-    return {
-        "scan_id": scan_id,
-        "status": scan.status,
-        "phase": status_mapping.get(scan.status, "crawling"),
-        "url": scan.url,
-        "created_at": scan.created_at.isoformat() if scan.created_at else None
-    }
+    """Get current status of a scan with enhanced progress tracking"""
+    try:
+        scan = db.get(ScanResult, scan_id)
+        if not scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+        
+        # Calculate progress based on status
+        progress_mapping = {
+            "pending": 10,
+            "scanning": 50, 
+            "completed": 100,
+            "failed": 100
+        }
+        
+        # Map status to frontend phases
+        status_mapping = {
+            "pending": "crawling",
+            "scanning": "crawling", 
+            "completed": "reporting", 
+            "failed": "failed"
+        }
+        
+        # Get issue count for completed scans - FIXED: use scan_result_id
+        issue_count = 0
+        if scan.status == "completed":
+            issue_count = db.query(ScanIssue).filter(ScanIssue.scan_result_id == scan_id).count()
+        
+        return {
+            "scan_id": scan_id,
+            "status": scan.status,
+            "phase": status_mapping.get(scan.status, "crawling"),
+            "progress": progress_mapping.get(scan.status, 0),
+            "url": scan.url,
+            "issue_count": issue_count,
+            "created_at": scan.created_at.isoformat() if scan.created_at else None,
+            "error_message": getattr(scan, 'error_message', None)
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Status check failed for scan {scan_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error checking scan status: {str(e)}")
 
 @router.get("/scan/{scan_id}/report")
 async def get_report(scan_id: int, db: Session = Depends(get_db)):
     """Get detailed accessibility report"""
-    scan = db.get(ScanResult, scan_id)
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
-    
-    if scan.status == "pending" or scan.status == "scanning":
-        raise HTTPException(status_code=425, detail="Scan not completed yet")
-    
-    if scan.status == "failed":
-        raise HTTPException(status_code=500, detail="Scan failed to complete")
-    
-    issues = []
-    for issue in scan.issues:
-        issues.append({
-            "id": issue.id,
-            "code": issue.code,
-            "type": getattr(issue, 'type', 'error'),
-            "message": issue.message,
-            "context": issue.context,
-            "selector": issue.selector,
-            "recommendation": getattr(issue, 'recommendation_text', 'No recommendation available'),
-            "severity": "high" if getattr(issue, 'type', 'error') == 'error' else "medium"
-        })
-    
-    # Calculate summary metrics
-    error_count = len([i for i in issues if i.get('type') == 'error'])
-    warning_count = len([i for i in issues if i.get('type') == 'warning'])
-    notice_count = len([i for i in issues if i.get('type') == 'notice'])
-    
-    summary = {
-        "total_issues": len(issues),
-        "errors": error_count,
-        "warnings": warning_count,
-        "notices": notice_count,
-        "accessibility_score": max(0, 100 - (error_count * 5 + warning_count * 2 + notice_count))
-    }
-    
-    return {
-        "scan_id": scan.id,
-        "url": scan.url,
-        "status": scan.status,
-        "issues": issues,
-        "summary": summary,
-        "created_at": scan.created_at.isoformat() if scan.created_at else None,
-        "scan_duration": "Completed"  # You can calculate actual duration if needed
-    }
+    try:
+        scan = db.get(ScanResult, scan_id)
+        if not scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+        
+        if scan.status == "pending" or scan.status == "scanning":
+            raise HTTPException(status_code=425, detail="Scan not completed yet")
+        
+        if scan.status == "failed":
+            raise HTTPException(status_code=500, detail="Scan failed to complete")
+        
+        issues = []
+        for issue in scan.issues:
+            issues.append({
+                "id": issue.id,
+                "code": issue.code,
+                "type": getattr(issue, 'type', 'error'),
+                "message": issue.message,
+                "context": issue.context,
+                "selector": issue.selector,
+                "recommendation": getattr(issue, 'recommendation_text', 'No recommendation available'),
+                "severity": "high" if getattr(issue, 'type', 'error') == 'error' else "medium"
+            })
+        
+        # Calculate summary metrics
+        error_count = len([i for i in issues if i.get('type') == 'error' or i.get('severity') == 'high'])
+        warning_count = len([i for i in issues if i.get('type') == 'warning' or i.get('severity') == 'medium'])
+        notice_count = len([i for i in issues if i.get('type') == 'notice' or i.get('severity') == 'low'])
+        
+        summary = {
+            "total_issues": len(issues),
+            "errors": error_count,
+            "warnings": warning_count,
+            "notices": notice_count,
+            "accessibility_score": max(0, 100 - (error_count * 5 + warning_count * 2 + notice_count))
+        }
+        
+        return {
+            "scan_id": scan.id,
+            "url": scan.url,
+            "status": scan.status,
+            "issues": issues,
+            "summary": summary,
+            "created_at": scan.created_at.isoformat() if scan.created_at else None,
+            "scan_duration": "Completed"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Report generation failed for scan {scan_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error generating report: {str(e)}")
 
 @router.get("/scan/{scan_id}/report/pdf")
 async def download_report_pdf(scan_id: int, db: Session = Depends(get_db)):
     """Generate and download PDF report with enhanced formatting"""
-    scan = db.get(ScanResult, scan_id)
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
-    
-    if scan.status != "completed":
-        raise HTTPException(status_code=425, detail="Scan not completed yet")
-
     try:
+        scan = db.get(ScanResult, scan_id)
+        if not scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+        
+        if scan.status != "completed":
+            raise HTTPException(status_code=425, detail="Scan not completed yet")
+
         # Use reportlab for PDF generation
         from reportlab.lib.pagesizes import letter, A4
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
@@ -396,3 +439,68 @@ async def download_report_pdf(scan_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"PDF generation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+@router.post("/scan/{scan_id}/reset")
+async def reset_stuck_scan(scan_id: int, db: Session = Depends(get_db)):
+    """Emergency endpoint to reset stuck scans"""
+    try:
+        scan = db.get(ScanResult, scan_id)
+        if not scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+        
+        if scan.status in ["pending", "scanning"]:
+            scan.status = "failed"
+            db.commit()
+            logger.info(f"🔄 Scan {scan_id} manually reset from '{scan.status}' to 'failed'")
+            return {
+                "status": "reset", 
+                "scan_id": scan_id, 
+                "message": f"Scan reset from {scan.status} to failed"
+            }
+        else:
+            return {
+                "status": "no_change", 
+                "scan_id": scan_id, 
+                "message": f"Scan was already in {scan.status} state"
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ Failed to reset scan {scan_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error resetting scan: {str(e)}")
+
+@router.get("/scan/{scan_id}/debug")
+async def debug_scan(scan_id: int, db: Session = Depends(get_db)):
+    """Debug endpoint to get detailed scan information"""
+    try:
+        scan = db.get(ScanResult, scan_id)
+        if not scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+        
+        # FIXED: use scan_result_id instead of scan_id
+        issues = db.query(ScanIssue).filter(ScanIssue.scan_result_id == scan_id).all()
+        
+        return {
+            "scan_id": scan_id,
+            "status": scan.status,
+            "url": scan.url,
+            "created_at": scan.created_at.isoformat() if scan.created_at else None,
+            "updated_at": getattr(scan, 'updated_at', None),
+            "issue_count": len(issues),
+            "issues_sample": [
+                {
+                    "id": issue.id,
+                    "code": issue.code,
+                    "type": getattr(issue, 'type', 'unknown'),
+                    "message": issue.message[:100] + "..." if len(issue.message) > 100 else issue.message
+                }
+                for issue in issues[:5]  # First 5 issues only
+            ],
+            "has_ai_recommendations": any(
+                getattr(issue, 'recommendation_text', None) 
+                for issue in issues
+            )
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Debug endpoint failed for scan {scan_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Debug error: {str(e)}")

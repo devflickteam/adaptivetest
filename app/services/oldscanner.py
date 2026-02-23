@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from PIL import Image
 from io import BytesIO
 import openai
-from app.database import save_scan_results
+from database import save_scan_results
 
 class PageData:
     def __init__(self, url, html, status):
@@ -146,7 +146,7 @@ class SiteScanner:
 import subprocess
 import json
 from sqlalchemy.orm import Session
-from app.models.models import ScanResult
+from models.models import ScanResult
 
 def run_pa11y_scan(url: str) -> list[dict]:
     """

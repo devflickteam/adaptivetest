@@ -17,9 +17,9 @@ load_dotenv(dotenv_path)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 # Now safe to import app config
-from app.config import settings
-from app.database import Base
-from app.models import ScanResult  # make sure models are imported so Alembic sees them
+from config import settings
+from database import Base
+from models import ScanResult  # make sure models are imported so Alembic sees them
 
 # Alembic Config object
 config = context.config

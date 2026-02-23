@@ -1,63 +1,68 @@
-# app/database.py
-from sqlalchemy import create_engine, text
+import os
+from sqlalchemy import create_engine, text  # ADDED: import text
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from app.config import settings
+from sqlalchemy.orm import sessionmaker
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Use the DATABASE_URL from settings
-SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
-logger.info(f"Database type: {'PostgreSQL' if 'postgresql' in SQLALCHEMY_DATABASE_URL else 'SQLite'}")
+if not DATABASE_URL:
+    logger.warning("DATABASE_URL not set, using SQLite fallback")
+    DATABASE_URL = "sqlite:///./adaptivetest.db"
+
+# Ensure proper PostgreSQL format
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+
+logger.info(f"Connecting to: {DATABASE_URL.split('@')[-1].split('?')[0]}")
 
 try:
-    # If using SQLite
-    if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
-        engine = create_engine(
-            SQLALCHEMY_DATABASE_URL, 
-            connect_args={"check_same_thread": False},
-            pool_pre_ping=True
-        )
-    else:
-        # For PostgreSQL (Render)
-        engine = create_engine(
-            SQLALCHEMY_DATABASE_URL,
-            pool_pre_ping=True,
-            pool_recycle=300,  # Recycle connections after 5 minutes
-            pool_size=5,
-            max_overflow=10
-        )
+    # Base engine configuration
+    engine_config = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'echo': False
+    }
+    
+    # ADD THIS: Check if it's Supabase and add SSL requirement
+    if 'supabase' in DATABASE_URL:
+        logger.info("🔌 Supabase detected, adding SSL requirements")
+        engine_config['connect_args'] = {
+            'sslmode': 'require',
+            'connect_timeout': 30
+        }
+    
+    engine = create_engine(DATABASE_URL, **engine_config)
+    
+    # FIXED: Wrap raw SQL in text()
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))  # CHANGED: added text()
     
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base = declarative_base()
-    
-    # Test connection
-    with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
-    
-    logger.info("✅ Database engine created successfully")
+    logger.info("✅ Database connection successful")
     
 except Exception as e:
-    logger.error(f"❌ Database engine creation failed: {e}")
-    raise
+    logger.error(f"❌ Database connection failed: {e}")
+    logger.info("🔄 Falling back to SQLite")
+    
+    DATABASE_URL = "sqlite:///./adaptivetest.db"
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
 
 def get_db():
-    db: Session = SessionLocal()
+    db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
-def get_engine():
-    return engine
-
 def create_tables():
-    """Create all tables - call this on startup"""
     try:
         Base.metadata.create_all(bind=engine)
-        logger.info("✅ Database tables created/verified")
+        logger.info("✅ Database tables created successfully")
     except Exception as e:
-        logger.error(f"❌ Table creation failed: {e}")
-        raise
+        logger.error(f"❌ Error creating tables: {e}")
