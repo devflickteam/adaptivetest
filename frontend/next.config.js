@@ -1,9 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  trailingSlash: true,
+  // COMMENT OUT or REMOVE the export line
+  // output: 'export',
+  // trailingSlash: true, // Also comment this out
+  
   images: {
-    unoptimized: true
+    unoptimized: true // Keep this for image optimization
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
