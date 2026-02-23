@@ -1,4 +1,4 @@
-// pages/result/[id].jsx - MATCHING FIGMA DESIGN
+// pages/result/[id].jsx - FIXED with proper text and styling
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
@@ -29,6 +29,7 @@ const getSeverityColor = (percentage) => {
   return 'bg-blue-100 text-blue-800 border-blue-300';
 };
 
+// FIXED: Changed "accessible" to "accessibility" in all issue titles
 const getIssueTitle = (issue) => {
   const msg = issue.message?.toLowerCase() || '';
   
@@ -519,11 +520,6 @@ export default function ResultPage() {
         <div className="absolute w-[1386px] h-[1386px] left-[267px] top-[-131px] border border-white/30 rounded-full" />
         <div className="absolute w-[1219px] h-[1219px] left-[351px] top-[-47px] border border-white rounded-full" />
         
-        {/* Decorative leaves/symbols */}
-        <div className="absolute left-[75px] top-[55px] opacity-60">
-          {/* SVG leaf patterns would go here - using the ones from your Figma */}
-        </div>
-
         <div className="relative max-w-7xl mx-auto px-4 pt-32">
           <div className="text-center">
             <h1 className="font-amiri text-[120px] leading-[100px] text-white mb-8">
@@ -555,16 +551,19 @@ export default function ResultPage() {
             </h2>
           </div>
 
-          {/* Score Card */}
+          {/* Score Card - FIXED: Score moved to left and made bold green */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-            {/* Left side - Scanning status */}
+            {/* Left side - Score (now on left) */}
+            <div className="space-y-6">
+              <div className="w-full h-[62px] bg-gradient-to-r from-[#F6EDEC] to-white" />
+              <div className="w-full h-[62px] bg-gradient-to-r from-[#F6EDEC] to-white max-w-[552px]" />
+              <div>
+                <span className="text-5xl font-bold text-[#132A13]">Score: {overallScore}</span>
+              </div>
+            </div>
+
+            {/* Right side - Scanning status */}
             <div className="relative">
-              <div className="absolute -top-10 left-0">
-                <div className="w-[31px] h-[31px] border border-[#A44A3F] rotate-45"></div>
-              </div>
-              <div className="absolute -top-10 right-0">
-                <div className="w-[31px] h-[31px] border border-[#A44A3F] rotate-45"></div>
-              </div>
               <div className="bg-[#132A13]/10 p-8">
                 <h3 className="font-amiri text-[50px] text-black mb-4">
                   Scanning your website...
@@ -572,15 +571,6 @@ export default function ResultPage() {
                 <p className="font-amiri text-[20px] text-black">
                   Testing your website for accessibility requirements with recommendations on where to adapt
                 </p>
-              </div>
-            </div>
-
-            {/* Right side - Score */}
-            <div className="space-y-6">
-              <div className="w-full h-[62px] bg-gradient-to-r from-[#F6EDEC] to-white" />
-              <div className="w-full h-[62px] bg-gradient-to-r from-[#F6EDEC] to-white max-w-[552px]" />
-              <div className="text-right">
-                <span className="text-2xl font-semibold">Score: {overallScore}</span>
               </div>
             </div>
           </div>
@@ -619,24 +609,19 @@ export default function ResultPage() {
               .sort(([a], [b]) => a.localeCompare(b))
               .map(([category, issues], categoryIndex) => (
                 <div key={category} className="bg-white shadow-[3px_3px_20px_rgba(0,0,0,0.20)] rounded-2xl overflow-hidden">
-                  {/* Category Header - with corner decorations */}
-                  <div className="relative">
-                    <div className="absolute top-4 left-4 w-[31px] h-[31px] border border-[#A44A3F] rotate-45"></div>
-                    <div className="absolute top-4 right-4 w-[31px] h-[31px] border border-[#A44A3F] rotate-45"></div>
-                    
-                    <div 
-                      className="bg-[#F6EDEC] p-6 cursor-pointer hover:bg-[#e8dddc] transition"
-                      onClick={() => toggleCategory(category)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <span className="text-3xl text-[#A3493F]">
-                            {expandedCategories[category] ? '−' : '+'}
-                          </span>
-                          <h3 className="font-amiri text-3xl text-black">{category}</h3>
-                        </div>
-                        <span className="text-2xl font-bold text-[#A3493F]">{issues.length}</span>
+                  {/* Category Header - REMOVED rotated rectangles */}
+                  <div 
+                    className="bg-[#F6EDEC] p-6 cursor-pointer hover:bg-[#e8dddc] transition"
+                    onClick={() => toggleCategory(category)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <span className="text-3xl text-[#A3493F]">
+                          {expandedCategories[category] ? '−' : '+'}
+                        </span>
+                        <h3 className="font-amiri text-3xl text-black">{category}</h3>
                       </div>
+                      <span className="text-2xl font-bold text-[#A3493F]">{issues.length}</span>
                     </div>
                   </div>
 
