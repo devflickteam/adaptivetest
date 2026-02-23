@@ -1,4 +1,4 @@
-// pages/result/[id].jsx - COMPLETE with ALL categories
+// pages/result/[id].jsx - COMPLETE with back button
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
@@ -516,7 +516,7 @@ export default function ResultPage() {
 
       <Navbar />
 
-      {/* Hero Section - Clean background */}
+      {/* Hero Section - Clean background with back button */}
       <div className="bg-[#132A13] py-16">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center">
@@ -524,14 +524,30 @@ export default function ResultPage() {
               AdaptiveTest AI
             </h1>
             
-            {/* URL Input Bar */}
+            {/* URL Input Bar with Back Button */}
             {report?.url && (
-              <div className="inline-flex items-center">
+              <div className="flex items-center justify-center gap-4">
                 <div className="w-[386px] h-[50px] outline outline-1 outline-white flex items-center px-6">
                   <span className="text-white text-[13.56px] font-bold font-['Arial']">
                     {report.url.replace(/^https?:\/\//, '')}
                   </span>
                 </div>
+                
+                {/* Back/Close Button - Option 1 (X) */}
+                <button
+                  onClick={() => window.location.href = '/'}
+                  className="w-[50px] h-[50px] outline outline-1 outline-white hover:bg-white/10 transition flex items-center justify-center group"
+                  aria-label="Return to home page"
+                >
+                  <svg 
+                    className="w-5 h-5 text-white group-hover:scale-110 transition-transform" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             )}
           </div>
