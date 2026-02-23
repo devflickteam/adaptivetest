@@ -1,4 +1,4 @@
-// pages/result/[id].jsx - UPDATED WITH PERCENTAGE SEVERITY SCORES & EMAIL MODAL
+// pages/result/[id].jsx - COMPLETE ENHANCED VERSION (700+ lines)
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
@@ -9,15 +9,15 @@ const getSeverityPercentage = (type) => {
   switch(type?.toLowerCase()) {
     case 'error':
     case 'critical':
-      return '95%'; // Highest impact
+      return '95%';
     case 'warning':
     case 'serious':
-      return '75%'; // High impact
+      return '75%';
     case 'notice':
     case 'moderate':
-      return '50%'; // Medium impact
+      return '50%';
     default:
-      return '25%'; // Low impact
+      return '25%';
   }
 };
 
@@ -50,6 +50,7 @@ const getAffectedUsersFromIssue = (issue) => {
       issue.message?.toLowerCase().includes('tab') ||
       issue.context?.toLowerCase().includes('button') ||
       issue.context?.toLowerCase().includes('a href')) {
+    affectedUsers.add('⌨️ Motor Impaired');
     affectedUsers.add('⌨️ Keyboard-Only Users');
   }
   
@@ -57,17 +58,20 @@ const getAffectedUsersFromIssue = (issue) => {
       issue.message?.toLowerCase().includes('aria') ||
       issue.message?.toLowerCase().includes('label')) {
     affectedUsers.add('👂 Screen Reader Users');
+    affectedUsers.add('👁️ Vision Impaired');
   }
   
   if (issue.message?.toLowerCase().includes('heading') || 
       issue.message?.toLowerCase().includes('structure') ||
       issue.message?.toLowerCase().includes('semantic')) {
+    affectedUsers.add('🧠 Cognitive Disability');
     affectedUsers.add('📖 All Users');
   }
   
   if (issue.message?.toLowerCase().includes('form') || 
       issue.context?.toLowerCase().includes('input')) {
     affectedUsers.add('👤 Form Users');
+    affectedUsers.add('⌨️ Motor Impaired');
   }
   
   // If no specific users identified, default
@@ -286,14 +290,101 @@ const EmailOptInModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
+// Helper to group issues by category
+const groupIssuesByCategory = (issues) => {
+  const groups = {};
+  
+  issues.forEach((issue, index) => {
+    const msg = issue.message?.toLowerCase() || '';
+    const context = issue.context?.toLowerCase() || '';
+    let category = 'Other';
+    
+    if (context.includes('a href') || context.includes('button') || msg.includes('link') || msg.includes('button')) {
+      category = 'Clickables';
+    } else if (context.includes('img') || msg.includes('image') || msg.includes('alt')) {
+      category = 'Images';
+    } else if (context.includes('form') || context.includes('input') || context.includes('label')) {
+      category = 'Forms';
+    } else if (msg.includes('heading') || msg.includes('h1') || msg.includes('h2') || msg.includes('structure')) {
+      category = 'Structure';
+    } else if (msg.includes('contrast') || msg.includes('color')) {
+      category = 'Readability';
+    } else if (msg.includes('keyboard') || msg.includes('tab') || msg.includes('focus')) {
+      category = 'Navigation';
+    }
+    
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+    
+    const plainDesc = getPlainDescription(issue);
+    const affectedUsers = getAffectedUsersFromIssue(issue);
+    const severityPercentage = getSeverityPercentage(issue.type || issue.severity);
+    const severityLabel = getSeverityLabel(issue.type || issue.severity);
+    const severityColor = getSeverityColor(severityPercentage);
+    
+    groups[category].push({
+      id: `issue-${category}-${index}`,
+      title: plainDesc,
+      affectedUsers,
+      severityPercentage,
+      severityLabel,
+      severityColor,
+      originalIssue: issue,
+      isFailure: issue.type === 'error' || issue.type === 'critical' || issue.type === 'warning'
+    });
+  });
+  
+  return Object.entries(groups).map(([category, items]) => ({
+    category,
+    items,
+    failures: items.filter(i => i.isFailure),
+    successes: items.filter(i => !i.isFailure),
+    totalFailures: items.filter(i => i.isFailure).length,
+    totalSuccesses: items.filter(i => !i.isFailure).length
+  }));
+};
+
+// Helper function for quick fix hints
+const getQuickFixHint = (htmlContext, message) => {
+  if (!htmlContext) return 'Inspect the element mentioned above in your code';
+  
+  if (htmlContext.includes('<title>')) {
+    return 'Update your page title in the <head> section to be more descriptive';
+  }
+  if (htmlContext.includes('<h1') || htmlContext.includes('<h2') || htmlContext.includes('<h3')) {
+    return 'Fix heading hierarchy - ensure H1 comes before H2, H2 before H3, etc.';
+  }
+  if (htmlContext.includes('<a ') && message.includes('contrast')) {
+    return 'Increase the color contrast of this link text to meet WCAG standards';
+  }
+  if (htmlContext.includes('<img ') && message.includes('alt')) {
+    return 'Add descriptive alt text to this image for screen readers';
+  }
+  if (htmlContext.includes('<a ') && message.includes('purpose')) {
+    return 'Make link text more descriptive or add aria-label for clarity';
+  }
+  if (htmlContext.includes('<button')) {
+    return 'Ensure button has proper labeling and contrast for accessibility';
+  }
+  if (htmlContext.includes('<input') || htmlContext.includes('<select')) {
+    return 'Add proper labels and ensure form elements are accessible';
+  }
+  if (message.includes('contrast')) {
+    return 'Increase color contrast ratio to at least 4.5:1 for normal text';
+  }
+  
+  return 'Inspect this specific element in your HTML and apply the recommended fix';
+};
+
 export default function ResultPage() {
   const [report, setReport] = useState(null);
   const [error, setError] = useState("");
-  const [expandedAccordions, setExpandedAccordions] = useState({});
+  const [expandedCategories, setExpandedCategories] = useState({});
+  const [expandedIssues, setExpandedIssues] = useState({});
   const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
-    // Load report from localStorage (or API)
     try {
       const stored = localStorage.getItem("adaptivetest:lastReport");
       if (stored) {
@@ -305,77 +396,17 @@ export default function ResultPage() {
     }
   }, []);
 
-  // Transform issues into accordion items
-  const transformIssuesToAccordions = (issues = []) => {
-    if (!issues.length) return [];
-    
-    return issues.map((issue, index) => {
-      const plainDesc = getPlainDescription(issue);
-      const affectedUsers = getAffectedUsersFromIssue(issue);
-      const severityPercentage = getSeverityPercentage(issue.type || issue.severity);
-      const severityLabel = getSeverityLabel(issue.type || issue.severity);
-      const severityColor = getSeverityColor(severityPercentage);
-      
-      return {
-        id: index,
-        title: plainDesc,
-        affectedUsers: affectedUsers,
-        severityPercentage: severityPercentage,
-        severityLabel: severityLabel,
-        severityColor: severityColor,
-        // Original data for expanded view
-        originalIssue: issue,
-        // For categorization
-        category: determineCategory(issue)
-      };
-    });
-  };
-
-  // Helper for categorization
-  const determineCategory = (issue) => {
-    const msg = issue.message.toLowerCase();
-    if (msg.includes('image') || msg.includes('alt')) return 'Images';
-    if (msg.includes('contrast') || msg.includes('color')) return 'Readability';
-    if (msg.includes('link') || msg.includes('button')) return 'Clickables';
-    if (msg.includes('form') || msg.includes('input')) return 'Forms';
-    if (msg.includes('heading') || msg.includes('title')) return 'Structure';
-    if (msg.includes('keyboard') || msg.includes('tab')) return 'Navigation';
-    return 'Other';
-  };
-
-  // Group accordions by category
-  const groupAccordionsByCategory = (accordions) => {
-    const groups = {};
-    
-    accordions.forEach(accordion => {
-      if (!groups[accordion.category]) {
-        groups[accordion.category] = [];
-      }
-      groups[accordion.category].push(accordion);
-    });
-    
-    return Object.entries(groups).map(([category, items]) => ({
-      category,
-      items,
-      count: items.length
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
     }));
   };
 
-  const accordions = report ? transformIssuesToAccordions(report.issues || []) : [];
-  const groupedAccordions = groupAccordionsByCategory(accordions);
-  
-  // Calculate overall score (inverse of severity)
-  const overallScore = accordions.length > 0 
-    ? Math.max(0, 100 - (accordions.reduce((acc, curr) => {
-        const severityNum = parseInt(curr.severityPercentage);
-        return acc + (severityNum / 100 * 20); // Weighted calculation
-      }, 0) / accordions.length))
-    : 100;
-
-  const toggleAccordion = (id) => {
-    setExpandedAccordions(prev => ({
+  const toggleIssue = (issueId) => {
+    setExpandedIssues(prev => ({
       ...prev,
-      [id]: !prev[id]
+      [issueId]: !prev[issueId]
     }));
   };
 
@@ -437,8 +468,14 @@ export default function ResultPage() {
     );
   }
 
+  const issues = report.issues || [];
+  const categories = groupIssuesByCategory(issues);
+  const totalIssues = issues.length;
+  const criticalIssues = issues.filter(i => i.type === 'error' || i.type === 'critical').length;
+  const overallScore = Math.max(0, 100 - (criticalIssues * 5) - (totalIssues * 0.5));
+
   return (
-    <div className="min-h-screen bg-white text-black flex flex-col">
+    <div className="min-h-screen bg-gray-50 text-black flex flex-col">
       <Head>
         <title>Accessibility Report – AdaptiveTest AI</title>
         <meta name="description" content="View your website's accessibility report with specific fixes and recommendations." />
@@ -453,7 +490,7 @@ export default function ResultPage() {
         
         <div className="relative max-w-4xl mx-auto text-center px-4">
           <h1 className="font-amiri text-6xl md:text-7xl lg:text-8xl mb-8 leading-tight">
-            AdaptiveTest AI
+            Accessibility Report
           </h1>
           
           {report?.url && (
@@ -465,8 +502,8 @@ export default function ResultPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white py-12">
-        <div className="max-w-6xl mx-auto px-4">
+      <div className="flex-1 bg-gray-50 py-12">
+        <div className="max-w-7xl mx-auto px-4">
           {/* Results Header */}
           <div className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8 mb-8">
             <div className="text-center mb-8">
@@ -491,7 +528,7 @@ export default function ResultPage() {
               </p>
             </div>
 
-            {/* NEW: Severity Score Legend */}
+            {/* Severity Score Legend */}
             <div className="max-w-3xl mx-auto mb-8">
               <h3 className="text-center text-xl font-semibold mb-4">Issue Severity Scale</h3>
               <div className="grid grid-cols-4 gap-4">
@@ -530,224 +567,245 @@ export default function ResultPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto text-center">
               <div className="bg-red-50 rounded-lg p-4">
                 <div className="text-2xl font-bold text-red-600">
-                  {accordions.filter(a => parseInt(a.severityPercentage) >= 90).length}
+                  {issues.filter(i => i.type === 'error' || i.type === 'critical').length}
                 </div>
                 <div className="text-sm text-red-800">Critical (90%+)</div>
               </div>
               <div className="bg-orange-50 rounded-lg p-4">
                 <div className="text-2xl font-bold text-orange-600">
-                  {accordions.filter(a => 
-                    parseInt(a.severityPercentage) >= 70 && 
-                    parseInt(a.severityPercentage) < 90
-                  ).length}
+                  {issues.filter(i => i.type === 'warning' || i.type === 'serious').length}
                 </div>
                 <div className="text-sm text-orange-800">Serious (70-89%)</div>
               </div>
               <div className="bg-yellow-50 rounded-lg p-4">
                 <div className="text-2xl font-bold text-yellow-600">
-                  {accordions.filter(a => 
-                    parseInt(a.severityPercentage) >= 50 && 
-                    parseInt(a.severityPercentage) < 70
-                  ).length}
+                  {issues.filter(i => i.type === 'notice' || i.type === 'moderate').length}
                 </div>
                 <div className="text-sm text-yellow-800">Moderate (50-69%)</div>
               </div>
               <div className="bg-blue-50 rounded-lg p-4">
                 <div className="text-2xl font-bold text-blue-600">
-                  {accordions.filter(a => parseInt(a.severityPercentage) < 50).length}
+                  {issues.filter(i => !i.type || i.type === 'minor').length}
                 </div>
                 <div className="text-sm text-blue-800">Minor (Below 50%)</div>
               </div>
             </div>
           </div>
 
-          {/* ACCORDION-BASED ISSUES DISPLAY */}
-          <div className="space-y-8">
-            {groupedAccordions.map((group, groupIndex) => (
-              <div key={groupIndex} className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-amiri text-3xl text-black">
-                    {group.category} Issues
-                  </h3>
-                  <span className="bg-gray-100 text-gray-800 px-4 py-2 rounded-full font-semibold">
-                    {group.count} issue{group.count !== 1 ? 's' : ''}
-                  </span>
-                </div>
+          {/* Categories Accordion */}
+          <div className="space-y-6">
+            {categories.map((group) => (
+              <div key={group.category} className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] overflow-hidden">
+                {/* Category Header */}
+                <button
+                  onClick={() => toggleCategory(group.category)}
+                  className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition"
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="text-2xl text-gray-400">
+                      {expandedCategories[group.category] ? '−' : '+'}
+                    </span>
+                    <div className="text-left">
+                      <h3 className="font-amiri text-3xl text-black">{group.category}</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {group.totalFailures} failure{group.totalFailures !== 1 ? 's' : ''} • {group.totalSuccesses} success{group.totalSuccesses !== 1 ? 'es' : ''}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-sm text-gray-500">Failures</div>
+                      <div className="text-xl font-bold text-red-600">{group.totalFailures}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-500">Successes</div>
+                      <div className="text-xl font-bold text-green-600">{group.totalSuccesses}</div>
+                    </div>
+                  </div>
+                </button>
 
-                <div className="space-y-4">
-                  {group.items.map((accordion) => (
-                    <div 
-                      key={accordion.id}
-                      className="border border-gray-200 rounded-lg overflow-hidden"
-                    >
-                      {/* ACCORDION HEADER */}
-                      <button
-                        onClick={() => toggleAccordion(accordion.id)}
-                        className="w-full flex justify-between items-center p-6 text-left hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex-1">
-                          {/* Plain Language Title */}
-                          <div className="flex items-start gap-3">
-                            <span className="text-2xl text-gray-400">
-                              {expandedAccordions[accordion.id] ? '−' : '+'}
-                            </span>
-                            <div className="flex-1">
-                              {/* Issue Title */}
-                              <h4 className="font-semibold text-lg text-gray-900 mb-2">
-                                {accordion.title}
-                              </h4>
-                              
-                              <div className="flex flex-wrap items-center gap-3">
-                                {/* Affected Users */}
-                                <div className="flex flex-wrap gap-2">
-                                  {accordion.affectedUsers.map((user, idx) => (
-                                    <span 
-                                      key={idx}
-                                      className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm"
-                                    >
-                                      {user}
-                                    </span>
-                                  ))}
-                                </div>
-                                
-                                {/* Severity Score Badge */}
-                                <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${accordion.severityColor}`}>
-                                  <span className="font-bold">{accordion.severityPercentage}</span>
-                                  <span className="text-xs font-semibold">
-                                    {accordion.severityPercentage === '95%' ? 'CRITICAL' :
-                                     accordion.severityPercentage === '75%' ? 'SERIOUS' :
-                                     accordion.severityPercentage === '50%' ? 'MODERATE' :
-                                     'MINOR'}
-                                  </span>
-                                </div>
+                {/* Category Content */}
+                {expandedCategories[group.category] && (
+                  <div className="border-t border-gray-200 p-6 bg-gray-50">
+                    <div className="space-y-6">
+                      {/* Failures Section */}
+                      {group.failures.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                            Failed Elements
+                          </h4>
+                          <div className="space-y-4">
+                            {group.failures.map((item) => (
+                              <div key={item.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                {/* Issue Header */}
+                                <button
+                                  onClick={() => toggleIssue(item.id)}
+                                  className="w-full flex items-start justify-between p-4 hover:bg-gray-50 transition"
+                                >
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <span className="text-gray-400">
+                                        {expandedIssues[item.id] ? '−' : '+'}
+                                      </span>
+                                      <h5 className="font-medium text-gray-900">
+                                        {item.title}
+                                      </h5>
+                                    </div>
+                                    
+                                    <div className="flex flex-wrap items-center gap-3 ml-7">
+                                      {/* Affected Users */}
+                                      <div className="flex flex-wrap gap-2">
+                                        {item.affectedUsers.map((user, idx) => (
+                                          <span 
+                                            key={idx}
+                                            className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
+                                          >
+                                            {user}
+                                          </span>
+                                        ))}
+                                      </div>
+                                      
+                                      {/* Severity Score */}
+                                      <div className={`flex items-center gap-1 px-3 py-1 rounded-full border ${item.severityColor}`}>
+                                        <span className="font-bold">{item.severityPercentage}</span>
+                                        <span className="text-xs">Severity</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </button>
+
+                                {/* Expanded Issue Details */}
+                                {expandedIssues[item.id] && (
+                                  <div className="border-t border-gray-200 p-4 bg-gray-50">
+                                    <div className="space-y-4">
+                                      {/* What's the problem? */}
+                                      <div>
+                                        <h6 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                          <span className="text-red-500">❓</span>
+                                          What's the problem?
+                                        </h6>
+                                        <p className="text-gray-700 text-sm">
+                                          {item.originalIssue.message}
+                                        </p>
+                                      </div>
+                                      
+                                      {/* Code Snapshot */}
+                                      {item.originalIssue.context && (
+                                        <div>
+                                          <h6 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                            <span className="text-blue-500">📍</span>
+                                            Code snapshot of failed element:
+                                          </h6>
+                                          <pre className="bg-gray-900 text-green-400 p-3 rounded-lg text-xs overflow-x-auto font-mono">
+                                            {item.originalIssue.context}
+                                          </pre>
+                                        </div>
+                                      )}
+                                      
+                                      {/* How to fix */}
+                                      <div>
+                                        <h6 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                          <span className="text-green-500">🔧</span>
+                                          How to fix it?
+                                        </h6>
+                                        <div className="bg-white p-4 rounded-lg border">
+                                          <p className="text-gray-700 text-sm mb-3">
+                                            {item.originalIssue.recommendation || 
+                                             'Review WCAG 2.1 guidelines for this issue type.'}
+                                          </p>
+                                          <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                                            <p className="text-yellow-800 text-sm">
+                                              <strong>Quick tip:</strong> {getQuickFixHint(
+                                                item.originalIssue.context, 
+                                                item.originalIssue.message
+                                              )}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* WCAG Reference */}
+                                      {item.originalIssue.code && (
+                                        <div className="flex items-center justify-between text-sm">
+                                          <span className="bg-gray-100 px-3 py-1 rounded flex items-center gap-2">
+                                            <span className="text-gray-500">📚</span>
+                                            <span>WCAG: {item.originalIssue.code}</span>
+                                          </span>
+                                          <span className="text-xs text-gray-500">
+                                            Issue ID: {item.id}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            </div>
+                            ))}
                           </div>
                         </div>
-                        
-                        {/* Arrow Icon */}
-                        <div className="ml-4">
-                          <svg 
-                            className={`w-5 h-5 transition-transform ${
-                              expandedAccordions[accordion.id] ? 'rotate-180' : ''
-                            }`}
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
-                      </button>
-                      
-                      {/* ACCORDION CONTENT (Expanded) */}
-                      {expandedAccordions[accordion.id] && (
-                        <div className="p-6 border-t border-gray-200 bg-gray-50">
-                          <div className="space-y-6">
-                            {/* What's the problem? */}
-                            <div>
-                              <h5 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                <span className="text-red-500">❓</span>
-                                What's the problem?
-                              </h5>
-                              <p className="text-gray-700">
-                                {accordion.originalIssue.message}
-                              </p>
-                            </div>
-                            
-                            {/* Where is it? */}
-                            <div>
-                              <h5 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                <span className="text-blue-500">📍</span>
-                                Where is it in your code?
-                              </h5>
-                              {accordion.originalIssue.selector && (
-                                <code className="block bg-gray-900 text-green-400 p-3 rounded text-sm overflow-x-auto font-mono mb-2">
-                                  {accordion.originalIssue.selector}
-                                </code>
-                              )}
-                              {accordion.originalIssue.context && (
-                                <div className="bg-gray-800 text-gray-300 p-3 rounded text-sm overflow-x-auto">
-                                  <div className="text-gray-500 text-xs mb-1">HTML Element:</div>
-                                  <pre>{accordion.originalIssue.context}</pre>
+                      )}
+
+                      {/* Successes Section */}
+                      {group.successes.length > 0 && (
+                        <div className="mt-6 pt-6 border-t border-gray-200">
+                          <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            Successful Elements
+                          </h4>
+                          <div className="grid grid-cols-1 gap-3">
+                            {group.successes.map((item) => (
+                              <div key={item.id} className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-green-600">✓</span>
+                                  <span className="font-medium text-gray-900">{item.title}</span>
                                 </div>
-                              )}
-                            </div>
-                            
-                            {/* How to fix it? */}
-                            <div>
-                              <h5 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                <span className="text-green-500">🔧</span>
-                                How to fix it?
-                              </h5>
-                              <div className="bg-white p-4 rounded-lg border">
-                                <p className="text-gray-700 mb-3">
-                                  {accordion.originalIssue.recommendation || 
-                                   'Review WCAG 2.1 guidelines for this issue type.'}
-                                </p>
-                                <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                                  <p className="text-yellow-800 text-sm">
-                                    <strong>Quick tip:</strong> {getQuickFixHint(
-                                      accordion.originalIssue.context, 
-                                      accordion.originalIssue.message
-                                    )}
-                                  </p>
-                                </div>
+                                {item.originalIssue.context && (
+                                  <pre className="text-xs text-gray-700 bg-white p-2 rounded overflow-x-auto">
+                                    {item.originalIssue.context}
+                                  </pre>
+                                )}
                               </div>
-                            </div>
-                            
-                            {/* WCAG Reference */}
-                            <div className="flex items-center justify-between">
-                              <span className="bg-gray-100 px-3 py-1 rounded text-sm flex items-center gap-2">
-                                <span className="text-gray-500">📚</span>
-                                <span>WCAG: {accordion.originalIssue.code || 'Not specified'}</span>
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                Issue ID: {accordion.id + 1}
-                              </span>
-                            </div>
+                            ))}
                           </div>
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
             ))}
+          </div>
 
-            {/* Download Report - UPDATED WITH MODAL */}
-            <div className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8 text-center">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <div className="bg-[#132A13] text-white p-3 rounded-lg">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-amiri text-3xl text-black mb-2">
-                    Download Complete Report
-                  </h3>
-                  <p className="text-gray-600">
-                    Get a detailed PDF report with Adaptive Atelier branding
-                  </p>
-                </div>
+          {/* Download Report */}
+          <div className="mt-8 bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8 text-center">
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="bg-[#132A13] text-white p-3 rounded-lg">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
-              
-              <p className="text-gray-600 text-lg mb-6 max-w-2xl mx-auto">
-                Enter your email to receive a professional PDF report with your accessibility score: {Math.round(overallScore)}%
-              </p>
-              
-              <button
-                onClick={() => setShowEmailModal(true)}
-                className="bg-[#132A13] hover:bg-[#1a3a1a] text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors inline-flex items-center gap-2"
-              >
-                📄 Get PDF Report
-              </button>
-              
-              <p className="text-sm text-gray-500 mt-4">
-                Report includes Adaptive Atelier branding and matches the structure you see here
-              </p>
+              <div>
+                <h3 className="font-amiri text-3xl text-black mb-2">
+                  Download Complete Report
+                </h3>
+                <p className="text-gray-600">
+                  Want to see all elements and full details?
+                </p>
+              </div>
             </div>
+            
+            <p className="text-gray-600 text-lg mb-6 max-w-2xl mx-auto">
+              Get the complete report with every issue, code snippets, and detailed fixes
+            </p>
+            
+            <button
+              onClick={() => setShowEmailModal(true)}
+              className="bg-[#132A13] hover:bg-[#1a3a1a] text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors inline-flex items-center gap-2"
+            >
+              📄 Get the free report to your email →
+            </button>
           </div>
         </div>
       </div>
@@ -763,35 +821,3 @@ export default function ResultPage() {
     </div>
   );
 }
-
-// Helper function for quick fix hints
-const getQuickFixHint = (htmlContext, message) => {
-  if (!htmlContext) return 'Inspect the element mentioned above in your code';
-  
-  if (htmlContext.includes('<title>')) {
-    return 'Update your page title in the <head> section to be more descriptive';
-  }
-  if (htmlContext.includes('<h1') || htmlContext.includes('<h2') || htmlContext.includes('<h3')) {
-    return 'Fix heading hierarchy - ensure H1 comes before H2, H2 before H3, etc.';
-  }
-  if (htmlContext.includes('<a ') && message.includes('contrast')) {
-    return 'Increase the color contrast of this link text to meet WCAG standards';
-  }
-  if (htmlContext.includes('<img ') && message.includes('alt')) {
-    return 'Add descriptive alt text to this image for screen readers';
-  }
-  if (htmlContext.includes('<a ') && message.includes('purpose')) {
-    return 'Make link text more descriptive or add aria-label for clarity';
-  }
-  if (htmlContext.includes('<button')) {
-    return 'Ensure button has proper labeling and contrast for accessibility';
-  }
-  if (htmlContext.includes('<input') || htmlContext.includes('<select')) {
-    return 'Add proper labels and ensure form elements are accessible';
-  }
-  if (message.includes('contrast')) {
-    return 'Increase color contrast ratio to at least 4.5:1 for normal text';
-  }
-  
-  return 'Inspect this specific element in your HTML and apply the recommended fix';
-};
