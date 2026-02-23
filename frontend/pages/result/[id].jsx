@@ -1,4 +1,4 @@
-// pages/result/[id].jsx - COMPLETE ENHANCED VERSION (700+ lines)
+// pages/result/[id].jsx - COMPLETE with WCAG versions + ARIA
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
@@ -30,107 +30,232 @@ const getSeverityColor = (percentage) => {
   return 'bg-blue-100 text-blue-800 border-blue-300';
 };
 
-// Helper to determine affected users from issue
-const getAffectedUsersFromIssue = (issue) => {
-  const affectedUsers = new Set();
+// Helper to get plain English issue title
+const getIssueTitle = (issue) => {
+  const msg = issue.message?.toLowerCase() || '';
   
-  if (issue.message?.toLowerCase().includes('image') || 
-      issue.message?.toLowerCase().includes('alt') ||
-      issue.context?.toLowerCase().includes('img')) {
-    affectedUsers.add('👁️ Blind Users');
-  }
-  
-  if (issue.message?.toLowerCase().includes('contrast') || 
-      issue.message?.toLowerCase().includes('color')) {
-    affectedUsers.add('🎨 Color Blind Users');
-    affectedUsers.add('👁️ Low Vision Users');
-  }
-  
-  if (issue.message?.toLowerCase().includes('keyboard') || 
-      issue.message?.toLowerCase().includes('tab') ||
-      issue.context?.toLowerCase().includes('button') ||
-      issue.context?.toLowerCase().includes('a href')) {
-    affectedUsers.add('⌨️ Motor Impaired');
-    affectedUsers.add('⌨️ Keyboard-Only Users');
-  }
-  
-  if (issue.message?.toLowerCase().includes('screen reader') || 
-      issue.message?.toLowerCase().includes('aria') ||
-      issue.message?.toLowerCase().includes('label')) {
-    affectedUsers.add('👂 Screen Reader Users');
-    affectedUsers.add('👁️ Vision Impaired');
-  }
-  
-  if (issue.message?.toLowerCase().includes('heading') || 
-      issue.message?.toLowerCase().includes('structure') ||
-      issue.message?.toLowerCase().includes('semantic')) {
-    affectedUsers.add('🧠 Cognitive Disability');
-    affectedUsers.add('📖 All Users');
-  }
-  
-  if (issue.message?.toLowerCase().includes('form') || 
-      issue.context?.toLowerCase().includes('input')) {
-    affectedUsers.add('👤 Form Users');
-    affectedUsers.add('⌨️ Motor Impaired');
-  }
-  
-  // If no specific users identified, default
-  if (affectedUsers.size === 0) {
-    affectedUsers.add('👥 Some Users');
-  }
-  
-  return Array.from(affectedUsers);
-};
-
-// Helper to get plain language description
-const getPlainDescription = (issue) => {
-  const msg = issue.message.toLowerCase();
-  
-  if (msg.includes('missing') && msg.includes('alt')) {
-    return 'Images without descriptions';
+  if (msg.includes('missing alt') || msg.includes('image without alt')) {
+    return 'Images missing descriptive text';
   }
   if (msg.includes('contrast')) {
-    return 'Low color contrast text';
+    return 'Text has low color contrast';
   }
-  if (msg.includes('missing') && msg.includes('label')) {
-    return 'Form fields without labels';
+  if (msg.includes('missing label') || msg.includes('form without label')) {
+    return 'Form fields missing labels';
   }
-  if (msg.includes('missing') && msg.includes('title')) {
-    return 'Page missing title';
+  if (msg.includes('missing title')) {
+    return 'Page is missing a title';
   }
-  if (msg.includes('empty') && msg.includes('link')) {
+  if (msg.includes('empty link')) {
     return 'Links without text';
   }
-  if (msg.includes('heading')) {
+  if (msg.includes('heading structure')) {
     return 'Poor heading structure';
   }
-  if (msg.includes('button') && msg.includes('name')) {
-    return 'Buttons without names';
+  if (msg.includes('button without name')) {
+    return 'Buttons without accessibility names';
   }
-  if (msg.includes('language')) {
-    return 'Missing page language';
+  if (msg.includes('missing language')) {
+    return 'Page language not specified';
+  }
+  if (msg.includes('keyboard focus')) {
+    return 'Elements not keyboard accessible';
+  }
+  if (msg.includes('aria')) {
+    return 'Improper ARIA attributes';
   }
   
-  // Fallback: capitalize first letter
-  return issue.message.charAt(0).toUpperCase() + issue.message.slice(1);
+  return issue.message || 'Accessibility issue detected';
 };
 
-// UPDATED: Get severity label with percentage
-const getSeverityLabel = (type) => {
-  const percentage = getSeverityPercentage(type);
-  switch(type?.toLowerCase()) {
-    case 'error':
-    case 'critical':
-      return `Critical - ${percentage}`;
-    case 'warning':
-    case 'serious':
-      return `Serious - ${percentage}`;
-    case 'notice':
-    case 'moderate':
-      return `Moderate - ${percentage}`;
-    default:
-      return `Minor - ${percentage}`;
+// Helper to determine affected users
+const getAffectedUsers = (issue) => {
+  const users = [];
+  const msg = issue.message?.toLowerCase() || '';
+  
+  if (msg.includes('image') || msg.includes('visual') || msg.includes('alt')) {
+    users.push('👁️ Blind and visually impaired users');
   }
+  if (msg.includes('keyboard') || msg.includes('tab') || msg.includes('focus')) {
+    users.push('⌨️ Users who cannot use a mouse');
+  }
+  if (msg.includes('contrast') || msg.includes('color')) {
+    users.push('🎨 Users with color blindness');
+  }
+  if (msg.includes('heading') || msg.includes('structure')) {
+    users.push('🧠 Users with cognitive disabilities');
+  }
+  if (msg.includes('form') || msg.includes('input') || msg.includes('label')) {
+    users.push('👤 All users, especially those using screen readers');
+  }
+  if (msg.includes('link') || msg.includes('button')) {
+    users.push('🖱️ Users navigating by links/buttons');
+  }
+  if (msg.includes('audio') || msg.includes('video')) {
+    users.push('🎧 Deaf or hard of hearing users');
+  }
+  
+  return users.length ? users : ['👥 Users with disabilities'];
+};
+
+// Helper to determine WCAG version and criterion
+const getWCAGInfo = (issue) => {
+  const code = issue.code?.toLowerCase() || '';
+  const msg = issue.message?.toLowerCase() || '';
+  
+  let version = 'WCAG 2.1';
+  let criterion = '';
+  let level = 'A';
+  
+  // ARIA (WAI-ARIA)
+  if (code.includes('aria') || msg.includes('aria-') || msg.includes('role=') || msg.includes('aria')) {
+    version = 'ARIA';
+    if (msg.includes('required attribute') || code.includes('aria-required')) {
+      criterion = 'ARIA Required Attributes';
+    } else if (msg.includes('aria-') || code.includes('aria-')) {
+      criterion = 'ARIA Attribute Usage';
+    } else if (msg.includes('role')) {
+      criterion = 'ARIA Role Usage';
+    } else if (msg.includes('labelledby') || msg.includes('describedby')) {
+      criterion = 'ARIA Relationships';
+    } else {
+      criterion = 'ARIA Implementation';
+    }
+    return { version, criterion, level };
+  }
+  
+  // WCAG 2.0
+  if (code.includes('wcag2a') || msg.includes('wcag 2.0') || msg.includes('wcag2.0')) {
+    version = 'WCAG 2.0';
+    
+    // Level A success criteria
+    if (code.includes('1.1.1') || msg.includes('non-text content') || msg.includes('alt')) {
+      criterion = '1.1.1 Non-text Content';
+    } else if (code.includes('1.2.1') || msg.includes('audio-only') || msg.includes('video-only')) {
+      criterion = '1.2.1 Audio-only and Video-only';
+    } else if (code.includes('1.3.1') || msg.includes('info and relationships') || msg.includes('structure')) {
+      criterion = '1.3.1 Info and Relationships';
+    } else if (code.includes('2.1.1') || msg.includes('keyboard')) {
+      criterion = '2.1.1 Keyboard';
+    } else if (code.includes('2.4.4') || msg.includes('link purpose') || msg.includes('link text')) {
+      criterion = '2.4.4 Link Purpose (In Context)';
+    } else if (code.includes('3.3.2') || msg.includes('labels') || msg.includes('instructions')) {
+      criterion = '3.3.2 Labels or Instructions';
+    } else if (code.includes('4.1.2') || msg.includes('name') || msg.includes('role') || msg.includes('value')) {
+      criterion = '4.1.2 Name, Role, Value';
+    }
+  }
+  
+  // WCAG 2.1
+  else if (code.includes('wcag21') || msg.includes('wcag 2.1') || msg.includes('wcag2.1')) {
+    version = 'WCAG 2.1';
+    
+    if (code.includes('1.3.4') || msg.includes('orientation')) {
+      criterion = '1.3.4 Orientation';
+    } else if (code.includes('1.3.5') || msg.includes('identify input purpose')) {
+      criterion = '1.3.5 Identify Input Purpose';
+    } else if (code.includes('1.4.10') || msg.includes('reflow')) {
+      criterion = '1.4.10 Reflow';
+    } else if (code.includes('1.4.11') || msg.includes('non-text contrast')) {
+      criterion = '1.4.11 Non-text Contrast';
+    } else if (code.includes('2.5.1') || msg.includes('pointer gestures')) {
+      criterion = '2.5.1 Pointer Gestures';
+    } else if (code.includes('4.1.3') || msg.includes('status messages')) {
+      criterion = '4.1.3 Status Messages';
+    }
+  }
+  
+  // WCAG 2.2
+  else if (code.includes('wcag22') || msg.includes('wcag 2.2') || msg.includes('wcag2.2')) {
+    version = 'WCAG 2.2';
+    
+    if (code.includes('2.4.11') || msg.includes('focus appearance')) {
+      criterion = '2.4.11 Focus Appearance (Minimum)';
+    } else if (code.includes('2.4.12') || msg.includes('focus appearance enhanced')) {
+      criterion = '2.4.12 Focus Appearance (Enhanced)';
+    } else if (code.includes('2.5.7') || msg.includes('dragging movements')) {
+      criterion = '2.5.7 Dragging Movements';
+    } else if (code.includes('3.2.6') || msg.includes('consistent help')) {
+      criterion = '3.2.6 Consistent Help';
+    } else if (code.includes('3.3.7') || msg.includes('redundant entry')) {
+      criterion = '3.3.7 Redundant Entry';
+    }
+  }
+  
+  // Determine level (A, AA, AAA)
+  if (code.includes('level-aaa') || msg.includes('aaa')) {
+    level = 'AAA';
+  } else if (code.includes('level-aa') || msg.includes('aa')) {
+    level = 'AA';
+  }
+  
+  return { version, criterion, level };
+};
+
+// Helper to determine category from issue
+const getCategoryForIssue = (issue) => {
+  const msg = issue.message?.toLowerCase() || '';
+  const context = issue.context?.toLowerCase() || '';
+  
+  if (msg.includes('image') || msg.includes('alt') || context.includes('img')) {
+    return 'Evaluating Images';
+  }
+  if (msg.includes('button') || msg.includes('link') || msg.includes('click')) {
+    return 'Evaluating Clickables';
+  }
+  if (msg.includes('title') || msg.includes('head')) {
+    return 'Evaluating Titles';
+  }
+  if (msg.includes('orientation') || msg.includes('rotate')) {
+    return 'Evaluating Orientation';
+  }
+  if (msg.includes('menu') || msg.includes('nav')) {
+    return 'Evaluating Menus';
+  }
+  if (msg.includes('form') || msg.includes('input') || msg.includes('label')) {
+    return 'Evaluating Forms';
+  }
+  if (msg.includes('document') || msg.includes('article')) {
+    return 'Evaluating Documents';
+  }
+  if (msg.includes('readability') || msg.includes('language')) {
+    return 'Evaluating Readability';
+  }
+  if (msg.includes('carousel') || msg.includes('slider')) {
+    return 'Evaluating Carousels';
+  }
+  if (msg.includes('table') || msg.includes('grid')) {
+    return 'Evaluating Tables';
+  }
+  if (msg.includes('link')) {
+    return 'Evaluating Links';
+  }
+  if (msg.includes('heading') || msg.includes('h1') || msg.includes('h2')) {
+    return 'Evaluating Headings';
+  }
+  if (msg.includes('aria')) {
+    return 'Evaluating ARIA';
+  }
+  if (msg.includes('language')) {
+    return 'Evaluating Language';
+  }
+  if (msg.includes('contrast') || msg.includes('color')) {
+    return 'Evaluating Color Contrast';
+  }
+  if (msg.includes('keyboard') || msg.includes('tab')) {
+    return 'Evaluating Keyboard Navigation';
+  }
+  if (msg.includes('focus')) {
+    return 'Evaluating Focus Management';
+  }
+  if (msg.includes('video') || msg.includes('audio')) {
+    return 'Evaluating Audio/Video';
+  }
+  if (msg.includes('animation') || msg.includes('motion')) {
+    return 'Evaluating Animations';
+  }
+  
+  return 'Evaluating Structure';
 };
 
 // Email Opt-In Modal Component
@@ -152,7 +277,6 @@ const EmailOptInModal = ({ isOpen, onClose, onConfirm }) => {
     setSubmitError("");
 
     try {
-      // Send email to adaptiveatelier
       const response = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -290,96 +414,8 @@ const EmailOptInModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
-// Helper to group issues by category
-const groupIssuesByCategory = (issues) => {
-  const groups = {};
-  
-  issues.forEach((issue, index) => {
-    const msg = issue.message?.toLowerCase() || '';
-    const context = issue.context?.toLowerCase() || '';
-    let category = 'Other';
-    
-    if (context.includes('a href') || context.includes('button') || msg.includes('link') || msg.includes('button')) {
-      category = 'Clickables';
-    } else if (context.includes('img') || msg.includes('image') || msg.includes('alt')) {
-      category = 'Images';
-    } else if (context.includes('form') || context.includes('input') || context.includes('label')) {
-      category = 'Forms';
-    } else if (msg.includes('heading') || msg.includes('h1') || msg.includes('h2') || msg.includes('structure')) {
-      category = 'Structure';
-    } else if (msg.includes('contrast') || msg.includes('color')) {
-      category = 'Readability';
-    } else if (msg.includes('keyboard') || msg.includes('tab') || msg.includes('focus')) {
-      category = 'Navigation';
-    }
-    
-    if (!groups[category]) {
-      groups[category] = [];
-    }
-    
-    const plainDesc = getPlainDescription(issue);
-    const affectedUsers = getAffectedUsersFromIssue(issue);
-    const severityPercentage = getSeverityPercentage(issue.type || issue.severity);
-    const severityLabel = getSeverityLabel(issue.type || issue.severity);
-    const severityColor = getSeverityColor(severityPercentage);
-    
-    groups[category].push({
-      id: `issue-${category}-${index}`,
-      title: plainDesc,
-      affectedUsers,
-      severityPercentage,
-      severityLabel,
-      severityColor,
-      originalIssue: issue,
-      isFailure: issue.type === 'error' || issue.type === 'critical' || issue.type === 'warning'
-    });
-  });
-  
-  return Object.entries(groups).map(([category, items]) => ({
-    category,
-    items,
-    failures: items.filter(i => i.isFailure),
-    successes: items.filter(i => !i.isFailure),
-    totalFailures: items.filter(i => i.isFailure).length,
-    totalSuccesses: items.filter(i => !i.isFailure).length
-  }));
-};
-
-// Helper function for quick fix hints
-const getQuickFixHint = (htmlContext, message) => {
-  if (!htmlContext) return 'Inspect the element mentioned above in your code';
-  
-  if (htmlContext.includes('<title>')) {
-    return 'Update your page title in the <head> section to be more descriptive';
-  }
-  if (htmlContext.includes('<h1') || htmlContext.includes('<h2') || htmlContext.includes('<h3')) {
-    return 'Fix heading hierarchy - ensure H1 comes before H2, H2 before H3, etc.';
-  }
-  if (htmlContext.includes('<a ') && message.includes('contrast')) {
-    return 'Increase the color contrast of this link text to meet WCAG standards';
-  }
-  if (htmlContext.includes('<img ') && message.includes('alt')) {
-    return 'Add descriptive alt text to this image for screen readers';
-  }
-  if (htmlContext.includes('<a ') && message.includes('purpose')) {
-    return 'Make link text more descriptive or add aria-label for clarity';
-  }
-  if (htmlContext.includes('<button')) {
-    return 'Ensure button has proper labeling and contrast for accessibility';
-  }
-  if (htmlContext.includes('<input') || htmlContext.includes('<select')) {
-    return 'Add proper labels and ensure form elements are accessible';
-  }
-  if (message.includes('contrast')) {
-    return 'Increase color contrast ratio to at least 4.5:1 for normal text';
-  }
-  
-  return 'Inspect this specific element in your HTML and apply the recommended fix';
-};
-
 export default function ResultPage() {
   const [report, setReport] = useState(null);
-  const [error, setError] = useState("");
   const [expandedCategories, setExpandedCategories] = useState({});
   const [expandedIssues, setExpandedIssues] = useState({});
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -392,7 +428,6 @@ export default function ResultPage() {
       }
     } catch (err) {
       console.error("Failed to load report", err);
-      setError("Failed to load report");
     }
   }, []);
 
@@ -412,14 +447,14 @@ export default function ResultPage() {
 
   const handleDownloadReport = async (userDetails) => {
     try {
-      // Generate and download PDF
+      const overallScore = calculateOverallScore();
       const response = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           report, 
           userDetails,
-          overallScore: Math.round(overallScore)
+          overallScore
         }),
       });
 
@@ -434,7 +469,6 @@ export default function ResultPage() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         
-        // Send confirmation email to user
         await fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -443,7 +477,7 @@ export default function ResultPage() {
             email: userDetails.email,
             name: userDetails.name,
             company: userDetails.company,
-            overallScore: Math.round(overallScore)
+            overallScore
           }),
         });
       }
@@ -452,7 +486,16 @@ export default function ResultPage() {
     }
   };
 
-  if (!report && !error) {
+  const calculateOverallScore = () => {
+    if (!report?.issues) return 100;
+    const criticalCount = report.issues.filter(i => 
+      i.type === 'error' || i.type === 'critical'
+    ).length;
+    const totalIssues = report.issues.length;
+    return Math.max(0, Math.round(100 - (criticalCount * 5) - (totalIssues * 0.5)));
+  };
+
+  if (!report) {
     return (
       <div className="min-h-screen bg-white text-black flex items-center justify-center">
         <p className="text-2xl">Loading report...</p>
@@ -460,22 +503,22 @@ export default function ResultPage() {
     );
   }
 
-  if (!report) {
-    return (
-      <div className="min-h-screen bg-white text-black flex items-center justify-center">
-        <p className="text-2xl text-red-600">{error || "No report found."}</p>
-      </div>
-    );
-  }
+  // Group issues by category
+  const issuesByCategory = {};
+  report.issues?.forEach(issue => {
+    const category = getCategoryForIssue(issue);
+    if (!issuesByCategory[category]) {
+      issuesByCategory[category] = [];
+    }
+    issuesByCategory[category].push(issue);
+  });
 
-  const issues = report.issues || [];
-  const categories = groupIssuesByCategory(issues);
-  const totalIssues = issues.length;
-  const criticalIssues = issues.filter(i => i.type === 'error' || i.type === 'critical').length;
-  const overallScore = Math.max(0, 100 - (criticalIssues * 5) - (totalIssues * 0.5));
+  const overallScore = calculateOverallScore();
+  const totalIssues = report.issues?.length || 0;
+  const criticalIssues = report.issues?.filter(i => i.type === 'error' || i.type === 'critical').length || 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 text-black flex flex-col">
+    <div className="min-h-screen bg-white text-black flex flex-col">
       <Head>
         <title>Accessibility Report – AdaptiveTest AI</title>
         <meta name="description" content="View your website's accessibility report with specific fixes and recommendations." />
@@ -483,7 +526,7 @@ export default function ResultPage() {
 
       <Navbar />
 
-      {/* Hero Section */}
+      {/* Hero Section with Original Styling */}
       <div className="relative bg-[#132A13] text-white py-20 overflow-hidden">
         <div className="absolute w-[1386px] h-[1386px] left-[-200px] top-[-131px] border border-white/30 rounded-full" />
         <div className="absolute w-[1219px] h-[1219px] left-[-150px] top-[-47px] border border-white rounded-full" />
@@ -502,16 +545,16 @@ export default function ResultPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-gray-50 py-12">
-        <div className="max-w-7xl mx-auto px-4">
-          {/* Results Header */}
+      <div className="flex-1 bg-white py-12">
+        <div className="max-w-6xl mx-auto px-4">
+          {/* Results Header with Score */}
           <div className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] p-8 mb-8">
             <div className="text-center mb-8">
               <h2 className="font-amiri text-5xl md:text-6xl text-black mb-4">
-                Accessibility Report
+                Accessibility Evaluation Results
               </h2>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                Simple, non-technical view of accessibility issues
+                Comprehensive analysis of your website's accessibility compliance
               </p>
             </div>
 
@@ -524,7 +567,7 @@ export default function ResultPage() {
                 />
               </div>
               <p className="text-center text-2xl font-semibold">
-                Overall Accessibility Score: {Math.round(overallScore)}%
+                Overall Accessibility Score: {overallScore}%
               </p>
             </div>
 
@@ -566,212 +609,195 @@ export default function ResultPage() {
             {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto text-center">
               <div className="bg-red-50 rounded-lg p-4">
-                <div className="text-2xl font-bold text-red-600">
-                  {issues.filter(i => i.type === 'error' || i.type === 'critical').length}
-                </div>
+                <div className="text-2xl font-bold text-red-600">{criticalIssues}</div>
                 <div className="text-sm text-red-800">Critical (90%+)</div>
               </div>
               <div className="bg-orange-50 rounded-lg p-4">
                 <div className="text-2xl font-bold text-orange-600">
-                  {issues.filter(i => i.type === 'warning' || i.type === 'serious').length}
+                  {report.issues?.filter(i => i.type === 'warning' || i.type === 'serious').length || 0}
                 </div>
                 <div className="text-sm text-orange-800">Serious (70-89%)</div>
               </div>
               <div className="bg-yellow-50 rounded-lg p-4">
                 <div className="text-2xl font-bold text-yellow-600">
-                  {issues.filter(i => i.type === 'notice' || i.type === 'moderate').length}
+                  {report.issues?.filter(i => i.type === 'notice' || i.type === 'moderate').length || 0}
                 </div>
                 <div className="text-sm text-yellow-800">Moderate (50-69%)</div>
               </div>
               <div className="bg-blue-50 rounded-lg p-4">
-                <div className="text-2xl font-bold text-blue-600">
-                  {issues.filter(i => !i.type || i.type === 'minor').length}
-                </div>
-                <div className="text-sm text-blue-800">Minor (Below 50%)</div>
+                <div className="text-2xl font-bold text-blue-600">{totalIssues}</div>
+                <div className="text-sm text-blue-800">Total Issues</div>
               </div>
             </div>
           </div>
 
-          {/* Categories Accordion */}
+          {/* Categories */}
           <div className="space-y-6">
-            {categories.map((group) => (
-              <div key={group.category} className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] overflow-hidden">
+            {Object.entries(issuesByCategory)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([category, issues]) => (
+              <div key={category} className="bg-white rounded-2xl shadow-[3px_3px_20px_rgba(0,0,0,0.20)] overflow-hidden">
                 {/* Category Header */}
-                <button
-                  onClick={() => toggleCategory(group.category)}
-                  className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition"
+                <div 
+                  className="bg-[#F6EDEC] p-6 cursor-pointer hover:bg-[#e8dddc] transition flex items-center justify-between"
+                  onClick={() => toggleCategory(category)}
                 >
                   <div className="flex items-center gap-4">
-                    <span className="text-2xl text-gray-400">
-                      {expandedCategories[group.category] ? '−' : '+'}
+                    <span className="text-3xl text-[#A3493F]">
+                      {expandedCategories[category] ? '−' : '+'}
                     </span>
-                    <div className="text-left">
-                      <h3 className="font-amiri text-3xl text-black">{group.category}</h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {group.totalFailures} failure{group.totalFailures !== 1 ? 's' : ''} • {group.totalSuccesses} success{group.totalSuccesses !== 1 ? 'es' : ''}
+                    <div>
+                      <h2 className="font-amiri text-3xl text-black">{category}</h2>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {issues.length} {issues.length === 1 ? 'issue' : 'issues'} found
                       </p>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-sm text-gray-500">Failures</div>
-                      <div className="text-xl font-bold text-red-600">{group.totalFailures}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-500">Successes</div>
-                      <div className="text-xl font-bold text-green-600">{group.totalSuccesses}</div>
-                    </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">Issues</div>
+                    <div className="text-2xl font-bold text-[#A3493F]">{issues.length}</div>
                   </div>
-                </button>
+                </div>
 
-                {/* Category Content */}
-                {expandedCategories[group.category] && (
-                  <div className="border-t border-gray-200 p-6 bg-gray-50">
-                    <div className="space-y-6">
-                      {/* Failures Section */}
-                      {group.failures.length > 0 && (
-                        <div>
-                          <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                            Failed Elements
-                          </h4>
-                          <div className="space-y-4">
-                            {group.failures.map((item) => (
-                              <div key={item.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                                {/* Issue Header */}
-                                <button
-                                  onClick={() => toggleIssue(item.id)}
-                                  className="w-full flex items-start justify-between p-4 hover:bg-gray-50 transition"
-                                >
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-2">
-                                      <span className="text-gray-400">
-                                        {expandedIssues[item.id] ? '−' : '+'}
-                                      </span>
-                                      <h5 className="font-medium text-gray-900">
-                                        {item.title}
-                                      </h5>
-                                    </div>
-                                    
-                                    <div className="flex flex-wrap items-center gap-3 ml-7">
-                                      {/* Affected Users */}
-                                      <div className="flex flex-wrap gap-2">
-                                        {item.affectedUsers.map((user, idx) => (
-                                          <span 
-                                            key={idx}
-                                            className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
-                                          >
-                                            {user}
-                                          </span>
-                                        ))}
-                                      </div>
-                                      
-                                      {/* Severity Score */}
-                                      <div className={`flex items-center gap-1 px-3 py-1 rounded-full border ${item.severityColor}`}>
-                                        <span className="font-bold">{item.severityPercentage}</span>
-                                        <span className="text-xs">Severity</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </button>
-
-                                {/* Expanded Issue Details */}
-                                {expandedIssues[item.id] && (
-                                  <div className="border-t border-gray-200 p-4 bg-gray-50">
-                                    <div className="space-y-4">
-                                      {/* What's the problem? */}
-                                      <div>
-                                        <h6 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                          <span className="text-red-500">❓</span>
-                                          What's the problem?
-                                        </h6>
-                                        <p className="text-gray-700 text-sm">
-                                          {item.originalIssue.message}
-                                        </p>
-                                      </div>
-                                      
-                                      {/* Code Snapshot */}
-                                      {item.originalIssue.context && (
-                                        <div>
-                                          <h6 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                            <span className="text-blue-500">📍</span>
-                                            Code snapshot of failed element:
-                                          </h6>
-                                          <pre className="bg-gray-900 text-green-400 p-3 rounded-lg text-xs overflow-x-auto font-mono">
-                                            {item.originalIssue.context}
-                                          </pre>
-                                        </div>
-                                      )}
-                                      
-                                      {/* How to fix */}
-                                      <div>
-                                        <h6 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                          <span className="text-green-500">🔧</span>
-                                          How to fix it?
-                                        </h6>
-                                        <div className="bg-white p-4 rounded-lg border">
-                                          <p className="text-gray-700 text-sm mb-3">
-                                            {item.originalIssue.recommendation || 
-                                             'Review WCAG 2.1 guidelines for this issue type.'}
-                                          </p>
-                                          <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                                            <p className="text-yellow-800 text-sm">
-                                              <strong>Quick tip:</strong> {getQuickFixHint(
-                                                item.originalIssue.context, 
-                                                item.originalIssue.message
-                                              )}
-                                            </p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      
-                                      {/* WCAG Reference */}
-                                      {item.originalIssue.code && (
-                                        <div className="flex items-center justify-between text-sm">
-                                          <span className="bg-gray-100 px-3 py-1 rounded flex items-center gap-2">
-                                            <span className="text-gray-500">📚</span>
-                                            <span>WCAG: {item.originalIssue.code}</span>
-                                          </span>
-                                          <span className="text-xs text-gray-500">
-                                            Issue ID: {item.id}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Successes Section */}
-                      {group.successes.length > 0 && (
-                        <div className="mt-6 pt-6 border-t border-gray-200">
-                          <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                            Successful Elements
-                          </h4>
-                          <div className="grid grid-cols-1 gap-3">
-                            {group.successes.map((item) => (
-                              <div key={item.id} className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <span className="text-green-600">✓</span>
-                                  <span className="font-medium text-gray-900">{item.title}</span>
+                {/* Category Issues */}
+                {expandedCategories[category] && (
+                  <div className="divide-y divide-gray-200">
+                    {issues.map((issue, idx) => {
+                      const issueId = `${category}-${idx}`;
+                      const severityPercentage = getSeverityPercentage(issue.type);
+                      const severityColor = getSeverityColor(severityPercentage);
+                      const title = getIssueTitle(issue);
+                      const affectedUsers = getAffectedUsers(issue);
+                      const { version, criterion, level } = getWCAGInfo(issue);
+                      
+                      return (
+                        <div key={idx} className="border-t border-gray-200">
+                          {/* Issue Header */}
+                          <div 
+                            className="p-6 cursor-pointer hover:bg-gray-50 transition flex items-start gap-4"
+                            onClick={() => toggleIssue(issueId)}
+                          >
+                            <span className="text-2xl text-gray-400">
+                              {expandedIssues[issueId] ? '−' : '+'}
+                            </span>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="font-semibold text-lg text-gray-900">
+                                  {title}
+                                </h3>
+                                <div className={`flex items-center gap-1 px-3 py-1 rounded-full border ${severityColor}`}>
+                                  <span className="font-bold">{severityPercentage}</span>
+                                  <span className="text-xs">Severity</span>
                                 </div>
-                                {item.originalIssue.context && (
-                                  <pre className="text-xs text-gray-700 bg-white p-2 rounded overflow-x-auto">
-                                    {item.originalIssue.context}
-                                  </pre>
+                              </div>
+                              {!expandedIssues[issueId] && (
+                                <div className="flex flex-wrap gap-2">
+                                  {affectedUsers.slice(0, 2).map((user, i) => (
+                                    <span key={i} className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                      {user}
+                                    </span>
+                                  ))}
+                                  {affectedUsers.length > 2 && (
+                                    <span className="text-sm text-gray-500">+{affectedUsers.length - 2} more</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Expanded Issue Details */}
+                          {expandedIssues[issueId] && (
+                            <div className="p-6 bg-gray-50 border-t border-gray-200">
+                              <div className="space-y-6">
+                                {/* WCAG Version & Criterion - NEW SECTION */}
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                  <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                                    <span className="text-blue-600">📋</span>
+                                    Accessibility Standard
+                                  </h4>
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                      version === 'ARIA' 
+                                        ? 'bg-purple-600 text-white' 
+                                        : 'bg-blue-600 text-white'
+                                    }`}>
+                                      {version}
+                                    </span>
+                                    {criterion && (
+                                      <span className="bg-white text-blue-800 px-3 py-1 rounded-full text-sm border border-blue-300">
+                                        {criterion}
+                                      </span>
+                                    )}
+                                    {level && version !== 'ARIA' && (
+                                      <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm border border-purple-300">
+                                        Level {level}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Issue Description */}
+                                <div>
+                                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                    <span className="text-red-500">❓</span>
+                                    What's the issue?
+                                  </h4>
+                                  <p className="text-gray-700">{issue.message}</p>
+                                </div>
+
+                                {/* Who it affects */}
+                                {affectedUsers.length > 0 && (
+                                  <div>
+                                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                      <span className="text-blue-500">👥</span>
+                                      Who it affects
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                      {affectedUsers.map((user, i) => (
+                                        <span key={i} className="bg-white border border-gray-200 px-3 py-1 rounded-full text-sm">
+                                          {user}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Element example */}
+                                {issue.context && (
+                                  <div>
+                                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                      <span className="text-green-500">📍</span>
+                                      Element found
+                                    </h4>
+                                    <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm overflow-x-auto">
+                                      {issue.context}
+                                    </pre>
+                                  </div>
+                                )}
+
+                                {/* How to fix */}
+                                {issue.recommendation && (
+                                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                    <h4 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                                      <span className="text-yellow-600">🔧</span>
+                                      How to fix
+                                    </h4>
+                                    <p className="text-yellow-800">{issue.recommendation}</p>
+                                  </div>
+                                )}
+
+                                {/* WCAG Reference */}
+                                {issue.code && (
+                                  <div className="text-sm text-gray-500">
+                                    <span className="font-medium">Reference:</span> {issue.code}
+                                  </div>
                                 )}
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -791,20 +817,16 @@ export default function ResultPage() {
                   Download Complete Report
                 </h3>
                 <p className="text-gray-600">
-                  Want to see all elements and full details?
+                  Get the full detailed report with all issues and fixes
                 </p>
               </div>
             </div>
-            
-            <p className="text-gray-600 text-lg mb-6 max-w-2xl mx-auto">
-              Get the complete report with every issue, code snippets, and detailed fixes
-            </p>
             
             <button
               onClick={() => setShowEmailModal(true)}
               className="bg-[#132A13] hover:bg-[#1a3a1a] text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors inline-flex items-center gap-2"
             >
-              📄 Get the free report to your email →
+              📄 Get Free PDF Report →
             </button>
           </div>
         </div>
