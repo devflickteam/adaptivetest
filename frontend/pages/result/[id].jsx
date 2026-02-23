@@ -1,4 +1,4 @@
-// pages/result/[id].jsx - COMPLETE with back button
+// pages/result/[id].jsx - COMPLETE with pass marks
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
@@ -533,7 +533,7 @@ export default function ResultPage() {
                   </span>
                 </div>
                 
-                {/* Back/Close Button - Option 1 (X) */}
+                {/* Back/Close Button */}
                 <button
                   onClick={() => window.location.href = '/'}
                   className="w-[50px] h-[50px] outline outline-1 outline-white hover:bg-white/10 transition flex items-center justify-center group"
@@ -617,14 +617,14 @@ export default function ResultPage() {
             </div>
           </div>
 
-          {/* Evaluation Categories - ALL 20 CATEGORIES */}
+          {/* Evaluation Categories - ALL 20 CATEGORIES with Pass Marks */}
           <div className="space-y-6">
             {allCategories.map(category => {
               const issues = issuesByCategory[category] || [];
               
               return (
                 <div key={category} className="bg-white shadow-[3px_3px_20px_rgba(0,0,0,0.20)] rounded-2xl overflow-hidden">
-                  {/* Category Header */}
+                  {/* Category Header with Pass Indicator */}
                   <div 
                     className="bg-[#F6EDEC] p-6 cursor-pointer hover:bg-[#e8dddc] transition"
                     onClick={() => toggleCategory(category)}
@@ -636,7 +636,20 @@ export default function ResultPage() {
                         </span>
                         <h3 className="font-amiri text-3xl text-black">{category}</h3>
                       </div>
-                      <span className="text-2xl font-bold text-[#A3493F]">{issues.length}</span>
+                      
+                      {/* Show pass mark for categories with no issues */}
+                      {issues.length === 0 ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-600 font-medium">Pass</span>
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-2xl font-bold text-[#A3493F]">{issues.length}</span>
+                      )}
                     </div>
                   </div>
 
@@ -762,10 +775,17 @@ export default function ResultPage() {
                           );
                         })
                       ) : (
-                        // No issues message
-                        <div className="p-8 text-center text-gray-500">
-                          <p className="text-lg">✅ No accessibility issues found in this category</p>
-                          <p className="text-sm mt-2">Your website meets WCAG standards for {category.toLowerCase()}</p>
+                        // No issues message with celebration
+                        <div className="p-8 text-center">
+                          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <p className="text-xl text-gray-700 font-medium mb-2">All tests passed! 🎉</p>
+                          <p className="text-gray-500">
+                            Your website meets WCAG accessibility standards for {category.toLowerCase()}
+                          </p>
                         </div>
                       )}
                     </div>
