@@ -1,8 +1,21 @@
-// pages/result/[id].jsx - COMPLETE with pass marks
+// pages/result/[id].jsx - COMPLETE with enhanced element location
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+
+// Helper to format HTML with proper indentation
+const formatHtml = (html) => {
+  if (!html) return '';
+  
+  // Simple formatter - you can make this more sophisticated if needed
+  let formatted = html
+    .replace(/></g, '>\n<') // Add line breaks between tags
+    .replace(/</g, '\u003c') // Ensure < is displayed correctly
+    .replace(/>/g, '\u003e'); // Ensure > is displayed correctly
+  
+  return formatted;
+};
 
 // Helper functions
 const getSeverityPercentage = (type) => {
@@ -343,6 +356,7 @@ export default function ResultPage() {
   const [expandedCategories, setExpandedCategories] = useState({});
   const [expandedIssues, setExpandedIssues] = useState({});
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [copySuccess, setCopySuccess] = useState('');
 
   useEffect(() => {
     try {
@@ -367,6 +381,12 @@ export default function ResultPage() {
       ...prev,
       [issueId]: !prev[issueId]
     }));
+  };
+
+  const handleCopyCode = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopySuccess('Copied!');
+    setTimeout(() => setCopySuccess(''), 2000);
   };
 
   const handleDownloadReport = async (userDetails) => {
@@ -751,13 +771,79 @@ export default function ResultPage() {
                                       </div>
                                     )}
 
-                                    {/* Element Example */}
+                                    {/* ENHANCED Element found section */}
                                     {issue.context && (
                                       <div>
-                                        <h5 className="font-semibold text-gray-900 mb-2">Element found</h5>
-                                        <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm overflow-x-auto">
-                                          {issue.context}
-                                        </pre>
+                                        <h5 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                          <span className="text-green-500">📍</span>
+                                          Element Location
+                                        </h5>
+                                        
+                                        {/* CSS Selector (most precise) */}
+                                        {issue.selector && (
+                                          <div className="mb-3">
+                                            <p className="text-sm text-gray-600 mb-1 font-medium">CSS Selector:</p>
+                                            <code className="block bg-gray-800 text-yellow-300 p-2 rounded text-xs font-mono overflow-x-auto">
+                                              {issue.selector}
+                                            </code>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                              Copy this selector to find the element in your code
+                                            </p>
+                                          </div>
+                                        )}
+                                        
+                                        {/* XPath (if available) */}
+                                        {issue.xpath && (
+                                          <div className="mb-3">
+                                            <p className="text-sm text-gray-600 mb-1 font-medium">XPath:</p>
+                                            <code className="block bg-gray-800 text-purple-300 p-2 rounded text-xs font-mono overflow-x-auto">
+                                              {issue.xpath}
+                                            </code>
+                                          </div>
+                                        )}
+                                        
+                                        {/* Line number (if available) */}
+                                        {issue.line && (
+                                          <div className="mb-3">
+                                            <p className="text-sm text-gray-600 mb-1 font-medium">Line Number:</p>
+                                            <code className="bg-gray-800 text-blue-300 px-3 py-1 rounded text-sm font-mono">
+                                              Line {issue.line}
+                                            </code>
+                                          </div>
+                                        )}
+                                        
+                                        {/* Full HTML context */}
+                                        <div className="mb-2">
+                                          <p className="text-sm text-gray-600 mb-1 font-medium">HTML Code:</p>
+                                          <div className="bg-gray-900 rounded-lg p-4">
+                                            <pre className="text-green-400 text-sm overflow-x-auto whitespace-pre-wrap font-mono">
+                                              {issue.context}
+                                            </pre>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Copy button */}
+                                        <button
+                                          onClick={() => handleCopyCode(issue.context)}
+                                          className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                        >
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                          </svg>
+                                          {copySuccess || 'Copy HTML to clipboard'}
+                                        </button>
+                                        
+                                        {/* Tips for finding the element */}
+                                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                                          <p className="text-sm text-blue-800 font-medium mb-1">🔍 How to find this element:</p>
+                                          <ul className="text-xs text-blue-700 list-disc list-inside space-y-1">
+                                            {issue.selector && (
+                                              <li>Use the CSS selector above with your browser's DevTools (Ctrl+F or Cmd+F)</li>
+                                            )}
+                                            <li>Search for the unique parts of the HTML in your codebase</li>
+                                            <li>Look for the element in your templates or components</li>
+                                          </ul>
+                                        </div>
                                       </div>
                                     )}
 
