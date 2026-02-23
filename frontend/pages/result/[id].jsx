@@ -1,10 +1,9 @@
-// pages/result/[id].jsx - COMPLETE with API fetching by ID
+// pages/result/[id].jsx - FIXED: Using localStorage (working version)
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/router';
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { useApiClient } from "../../lib/api";
 
 // Helper to format HTML with proper indentation
 const formatHtml = (html) => {
@@ -355,7 +354,6 @@ const EmailOptInModal = ({ isOpen, onClose, onConfirm }) => {
 export default function ResultPage() {
   const router = useRouter();
   const { id } = router.query;
-  const { getScanResults } = useApiClient();
   
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -365,44 +363,34 @@ export default function ResultPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState('');
 
-  // FIXED: Fetch scan results by ID from API
+  // FIXED: Use localStorage only - this is what worked before!
   useEffect(() => {
-    if (!id) return; // Wait for ID to be available from router
+    // Don't proceed until we have an ID from the router
+    if (!id) return;
     
-    const fetchScanResults = async () => {
-      setLoading(true);
-      try {
-        console.log('📋 Fetching results for scan ID:', id);
-        
-        // Try to get from API first
-        const { ok, data } = await getScanResults(id);
-        
-        if (ok && data) {
-          console.log('✅ Results loaded from API:', data);
-          setReport(data);
-          // Also save to localStorage as backup
-          localStorage.setItem("adaptivetest:lastReport", JSON.stringify(data));
-        } else {
-          // Fallback to localStorage
-          const stored = localStorage.getItem("adaptivetest:lastReport");
-          if (stored) {
-            const localData = JSON.parse(stored);
-            console.log('⚠️ Using localStorage backup:', localData);
-            setReport(localData);
-          } else {
-            setError("No scan results found for ID: " + id);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load report", err);
-        setError("Failed to load scan results: " + err.message);
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    console.log('📋 Loading report for scan ID:', id);
+    
+    try {
+      // Get from localStorage (where scanning page saved it)
+      const stored = localStorage.getItem("adaptivetest:lastReport");
+      
+      if (stored) {
+        const reportData = JSON.parse(stored);
+        console.log('✅ Report loaded from localStorage:', reportData);
+        setReport(reportData);
+        setError("");
+      } else {
+        console.log('⚠️ No report found in localStorage');
+        setError("No scan results found. Please run a scan first.");
       }
-    };
-
-    fetchScanResults();
-  }, [id, getScanResults]);
+    } catch (err) {
+      console.error("❌ Failed to load report:", err);
+      setError("Failed to load scan results: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]); // Re-run when id changes
 
   const toggleCategory = (category) => {
     setExpandedCategories(prev => ({
