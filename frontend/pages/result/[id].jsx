@@ -1,4 +1,4 @@
-// pages/result/[id].jsx - COMPLETE with AdaptiveWiz recommendation
+// pages/result/[id].jsx - COMPLETE with fixed score calculation
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/router';
@@ -17,21 +17,20 @@ const formatHtml = (html) => {
   return formatted;
 };
 
-// Helper functions
-const getSeverityPercentage = (type) => {
-  switch(type?.toLowerCase()) {
-    case 'error':
-    case 'critical':
-      return '95%';
-    case 'warning':
-    case 'serious':
-      return '75%';
-    case 'notice':
-    case 'moderate':
-      return '50%';
-    default:
-      return '25%';
+// FIXED: Helper functions with better severity handling
+const getSeverityPercentage = (severity) => {
+  const sev = severity?.toLowerCase() || '';
+  
+  if (sev === 'critical' || sev === 'high' || sev === 'error') {
+    return '95%';
   }
+  if (sev === 'serious' || sev === 'warning' || sev === 'medium') {
+    return '75%';
+  }
+  if (sev === 'moderate' || sev === 'notice' || sev === 'low') {
+    return '50%';
+  }
+  return '25%';
 };
 
 const getSeverityColor = (percentage) => {
@@ -564,16 +563,38 @@ export default function ResultPage() {
     }
   };
 
+  // FIXED: Robust score calculation that handles different field names
   const calculateOverallScore = () => {
-    if (!report?.issues) return 100;
-    const criticalCount = report.issues.filter(i => 
-      i.type === 'violation' && i.impact === 'critical'
-    ).length;
-    const violationCount = report.issues.filter(i => i.type === 'violation').length;
-    const warningCount = report.issues.filter(i => i.type === 'warning').length;
+    if (!report?.issues || report.issues.length === 0) return 100;
+    
+    let criticalCount = 0;
+    let violationCount = 0;
+    let warningCount = 0;
+    
+    report.issues.forEach(issue => {
+      // Check multiple possible fields for severity/impact
+      const severity = (issue.impact || issue.severity || issue.priority || '').toLowerCase();
+      const type = (issue.type || '').toLowerCase();
+      
+      // Count critical issues (highest severity)
+      if (severity === 'critical' || severity === 'high' || issue.critical === true) {
+        criticalCount++;
+      }
+      
+      // Count all violations/errors
+      if (type === 'violation' || type === 'error') {
+        violationCount++;
+      }
+      
+      // Count warnings
+      if (type === 'warning' || severity === 'moderate' || severity === 'medium') {
+        warningCount++;
+      }
+    });
     
     // Score calculation: start at 100, subtract points for issues
-    return Math.max(0, Math.round(100 - (criticalCount * 5) - (violationCount * 2) - warningCount));
+    const score = 100 - (criticalCount * 5) - (violationCount * 2) - warningCount;
+    return Math.max(0, Math.round(score));
   };
 
   // Group issues by category
@@ -848,7 +869,8 @@ export default function ResultPage() {
                       {issues.length > 0 ? (
                         issues.map((issue, idx) => {
                           const issueId = `${category}-${idx}`;
-                          const severityPercentage = getSeverityPercentage(issue.impact);
+                          // FIXED: Use impact or severity field
+                          const severityPercentage = getSeverityPercentage(issue.impact || issue.severity);
                           const severityColor = getSeverityColor(severityPercentage);
                           const title = getIssueTitle(issue);
                           const affectedUsers = getAffectedUsers(issue);
