@@ -1,4 +1,4 @@
-// pages/scanning/[id].jsx - UPDATED WITH AUTO-SCAN SUPPORT
+// pages/scanning/[id].jsx - FIXED with correct redirect to /result/[id]
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
@@ -12,7 +12,7 @@ import toast from "react-hot-toast";
 export default function ScanningPage() {
   const router = useRouter();
   const { id } = router.query;
-  const { getScanStatus, getReport, startScan } = useApiClient(); // Added startScan
+  const { getScanStatus, getReport, startScan } = useApiClient();
 
   const [status, setStatus] = useState("pending");
   const [phase, setPhase] = useState("crawling");
@@ -88,7 +88,7 @@ export default function ScanningPage() {
 
         setStatus(data.status || "pending");
         if (data.phase) setPhase(data.phase);
-        if (data.url && !scanUrl) setScanUrl(data.url); // Only set if not already set
+        if (data.url && !scanUrl) setScanUrl(data.url);
 
         // Update scanning categories based on phase
         const updatedCategories = [...scanningCategories];
@@ -128,7 +128,10 @@ export default function ScanningPage() {
             );
           }
           toast.success("✅ Scan completed! Redirecting to your report…");
-          setTimeout(() => router.push("/result/local"), 1500);
+          
+          // FIXED: Redirect to dynamic route with the scan ID
+          setTimeout(() => router.push(`/result/${id}`), 1500);
+          
         } else if (data.status === "failed") {
           clearInterval(interval);
           toast.error("❌ Scan failed. Please try again.");
