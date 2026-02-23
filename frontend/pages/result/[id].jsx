@@ -1,18 +1,19 @@
-// pages/result/[id].jsx - COMPLETE with enhanced element location
+// pages/result/[id].jsx - COMPLETE with API fetching by ID
 import Head from "next/head";
 import { useEffect, useState } from "react";
+import { useRouter } from 'next/router';
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import { useApiClient } from "../../lib/api";
 
 // Helper to format HTML with proper indentation
 const formatHtml = (html) => {
   if (!html) return '';
   
-  // Simple formatter - you can make this more sophisticated if needed
   let formatted = html
-    .replace(/></g, '>\n<') // Add line breaks between tags
-    .replace(/</g, '\u003c') // Ensure < is displayed correctly
-    .replace(/>/g, '\u003e'); // Ensure > is displayed correctly
+    .replace(/></g, '>\n<')
+    .replace(/</g, '\u003c')
+    .replace(/>/g, '\u003e');
   
   return formatted;
 };
@@ -352,22 +353,56 @@ const EmailOptInModal = ({ isOpen, onClose, onConfirm }) => {
 };
 
 export default function ResultPage() {
+  const router = useRouter();
+  const { id } = router.query;
+  const { getScanResults } = useApiClient();
+  
   const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [expandedCategories, setExpandedCategories] = useState({});
   const [expandedIssues, setExpandedIssues] = useState({});
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState('');
 
+  // FIXED: Fetch scan results by ID from API
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("adaptivetest:lastReport");
-      if (stored) {
-        setReport(JSON.parse(stored));
+    if (!id) return; // Wait for ID to be available from router
+    
+    const fetchScanResults = async () => {
+      setLoading(true);
+      try {
+        console.log('📋 Fetching results for scan ID:', id);
+        
+        // Try to get from API first
+        const { ok, data } = await getScanResults(id);
+        
+        if (ok && data) {
+          console.log('✅ Results loaded from API:', data);
+          setReport(data);
+          // Also save to localStorage as backup
+          localStorage.setItem("adaptivetest:lastReport", JSON.stringify(data));
+        } else {
+          // Fallback to localStorage
+          const stored = localStorage.getItem("adaptivetest:lastReport");
+          if (stored) {
+            const localData = JSON.parse(stored);
+            console.log('⚠️ Using localStorage backup:', localData);
+            setReport(localData);
+          } else {
+            setError("No scan results found for ID: " + id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load report", err);
+        setError("Failed to load scan results: " + err.message);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Failed to load report", err);
-    }
-  }, []);
+    };
+
+    fetchScanResults();
+  }, [id, getScanResults]);
 
   const toggleCategory = (category) => {
     setExpandedCategories(prev => ({
@@ -494,10 +529,39 @@ export default function ResultPage() {
     issuesByCategory[category].push(issue);
   });
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#132A13] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-2xl">Loading report for scan #{id}...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-2xl text-red-600 mb-4">❌ {error}</p>
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="bg-[#132A13] text-white px-6 py-3 rounded-lg hover:bg-[#1a3a1a] transition"
+          >
+            Scan a New Website
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!report) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <p className="text-2xl">Loading report...</p>
+        <p className="text-2xl">No report found for scan #{id}</p>
       </div>
     );
   }
