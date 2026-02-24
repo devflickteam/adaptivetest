@@ -17,7 +17,7 @@ const formatHtml = (html) => {
   return formatted;
 };
 
-// FIXED: Helper functions with better severity handling
+// Helper functions
 const getSeverityPercentage = (severity) => {
   const sev = severity?.toLowerCase() || '';
   
@@ -487,7 +487,8 @@ export default function ResultPage() {
       
       if (stored) {
         const reportData = JSON.parse(stored);
-        console.log('✅ Report loaded from localStorage:', reportData);
+        console.log('✅ Report loaded from localStorage');
+        console.log('📊 Total issues:', reportData.issues?.length || 0);
         setReport(reportData);
         setError("");
       } else {
@@ -563,38 +564,27 @@ export default function ResultPage() {
     }
   };
 
-  // FIXED: Robust score calculation that handles different field names
+  // FIXED: Ultra-simple score calculation based on total issues
   const calculateOverallScore = () => {
-    if (!report?.issues || report.issues.length === 0) return 100;
+    if (!report?.issues) {
+      console.log('No report issues found, score: 100');
+      return 100;
+    }
     
-    let criticalCount = 0;
-    let violationCount = 0;
-    let warningCount = 0;
+    const totalIssues = report.issues.length;
+    console.log(`📊 Total issues found: ${totalIssues}`);
     
-    report.issues.forEach(issue => {
-      // Check multiple possible fields for severity/impact
-      const severity = (issue.impact || issue.severity || issue.priority || '').toLowerCase();
-      const type = (issue.type || '').toLowerCase();
-      
-      // Count critical issues (highest severity)
-      if (severity === 'critical' || severity === 'high' || issue.critical === true) {
-        criticalCount++;
-      }
-      
-      // Count all violations/errors
-      if (type === 'violation' || type === 'error') {
-        violationCount++;
-      }
-      
-      // Count warnings
-      if (type === 'warning' || severity === 'moderate' || severity === 'medium') {
-        warningCount++;
-      }
-    });
+    if (totalIssues === 0) {
+      return 100;
+    }
     
-    // Score calculation: start at 100, subtract points for issues
-    const score = 100 - (criticalCount * 5) - (violationCount * 2) - warningCount;
-    return Math.max(0, Math.round(score));
+    // Simple formula: 100 - (number of issues * 1.5)
+    // Ensures score doesn't go below 0
+    let score = 100 - (totalIssues * 1.5);
+    score = Math.max(0, Math.round(score));
+    
+    console.log(`📊 Calculated score: ${score}`);
+    return score;
   };
 
   // Group issues by category
@@ -770,7 +760,7 @@ export default function ResultPage() {
           
           {/* Header */}
           <div className="mb-8">
-            <h2 className="font-amiri text-[60px] md:text-[60px] lg:text-[100px] leading-[0.9] text-black">
+            <h2 className="font-amiri text-[60px] md:text-[80px] lg:text-[100px] leading-[0.9] text-black">
               Web Accessibility Audit
             </h2>
           </div>
@@ -869,7 +859,6 @@ export default function ResultPage() {
                       {issues.length > 0 ? (
                         issues.map((issue, idx) => {
                           const issueId = `${category}-${idx}`;
-                          // FIXED: Use impact or severity field
                           const severityPercentage = getSeverityPercentage(issue.impact || issue.severity);
                           const severityColor = getSeverityColor(severityPercentage);
                           const title = getIssueTitle(issue);
